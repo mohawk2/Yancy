@@ -590,8 +590,31 @@ use Mojo::Util qw( url_escape );
 use Sys::Hostname qw( hostname );
 use Yancy::Util qw( load_backend curry definitions_non_fundamental );
 use JSON::Validator::OpenAPI::Mojolicious;
+use Hash::Merge qw( merge );
+use List::Util qw( uniq );
 
 has _filters => sub { {} };
+
+my $MERGE = Hash::Merge->new;
+$MERGE->add_behavior_spec(
+    {
+        'SCALAR' => {
+            'SCALAR' => sub { $_[0] },
+            'ARRAY'  => sub { [ uniq $_[0], @{ $_[1] } ] },
+            'HASH'   => sub { $_[0] },
+        },
+        'ARRAY' => {
+            'SCALAR' => sub { $_[0] },
+            'ARRAY'  => sub { [ uniq @{ $_[0] }, @{ $_[1] } ] },
+            'HASH'   => sub { $_[0] },
+        },
+        'HASH' => {
+            'SCALAR' => sub { $_[0] },
+            'ARRAY'  => sub { [ uniq values %{ $_[0] }, @{ $_[1] } ] },
+            'HASH'   => sub { Hash::Merge::_merge_hashes( $_[0], $_[1] ) },
+        },
+    },
+);
 
 sub register {
     my ( $self, $app, $config ) = @_;
@@ -680,7 +703,7 @@ sub register {
         if ( $config->{read_schema} ) {
             my $schema = $app->yancy->backend->read_schema;
             for my $c ( keys %$schema ) {
-                _merge_schema( $config->{collections}{ $c } ||= {}, $schema->{ $c } );
+                $config->{collections}{ $c } = _merge_schema( $config->{collections}{ $c }, $schema->{ $c } );
             }
             # ; say 'Merged Config';
             # ; use Data::Dumper;
@@ -690,7 +713,7 @@ sub register {
         for my $schema_name ( keys %{ $config->{collections} } ) {
             my $schema = $config->{collections}{ $schema_name };
             if ( delete $schema->{read_schema} ) {
-                _merge_schema( $schema, $app->yancy->backend->read_schema( $schema_name ) );
+                $config->{collections}{ $schema_name } = _merge_schema( $schema, $app->yancy->backend->read_schema( $schema_name ) );
             }
         }
 
@@ -1263,22 +1286,9 @@ sub _helper_filter_add {
 
 # _merge_schema( $keep, $merge );
 #
-# Merge the given $merge schema into the given $keep schema. $keep is
-# modified in-place (but also returned)
+# Returns copy of given $keep schema merged with given $merge schema.
 sub _merge_schema {
     my ( $keep, $merge ) = @_;
-    my $keep_props = $keep->{properties} ||= {};
-    my $merge_props = delete $merge->{properties};
-    for my $k ( keys %$merge ) {
-        $keep->{ $k } ||= $merge->{ $k };
-    }
-    for my $p ( keys %{ $merge_props } ) {
-        my $keep_prop = $keep_props->{ $p } ||= {};
-        my $merge_prop = $merge_props->{ $p };
-        for my $k ( keys %$merge_prop ) {
-            $keep_prop->{ $k } ||= $merge_prop->{ $k };
-        }
-    }
-    return $keep;
+    $MERGE->merge( $keep || {}, $merge );
 }
 1;
