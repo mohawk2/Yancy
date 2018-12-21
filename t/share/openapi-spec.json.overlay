@@ -1,0 +1,9 @@
+{
+   "paths" : {
+      "/people" : {
+         "x-filter": [
+            [ "yancy.overlay_from_helper", "name", "yancy.hello" ]
+         ]
+      }
+   }
+}

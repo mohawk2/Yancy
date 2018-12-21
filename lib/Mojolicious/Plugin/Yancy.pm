@@ -734,6 +734,10 @@ sub register {
         # Add OpenAPI spec
         $spec = $self->_openapi_spec_from_schema( $config );
     }
+    if (my $overlay = $config->{openapi_overlay}) {
+        $overlay = _ensure_json_data( $app, $overlay );
+        $spec = _merge_schema( $spec, $overlay );
+    }
     $self->_openapi_spec_add_mojo( $spec, $config );
 
     my $openapi = $app->plugin( OpenAPI => {

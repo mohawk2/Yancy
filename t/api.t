@@ -183,7 +183,37 @@ subtest 'inferrable collection' => sub {
     is $@, '', 'no exception';
 };
 
+$openapi = decode_json path ( $Bin, 'share', 'openapi-spec.json' )->slurp;
+my $openapi_overlay = decode_json path ( $Bin, 'share', 'openapi-spec.json.overlay' )->slurp;
+( $backend_url, $backend, %items ) = init_backend( $collections, %data );
+subtest 'pass openapi_overlay, test x-parameters-implicit' => \&test_implicit_params,
+    Test::Mojo->new( 'Yancy', {
+        backend => $backend_url,
+        openapi => $openapi,
+        openapi_overlay => $openapi_overlay,
+    } ),
+    '/yancy/api';
+
 done_testing;
+
+sub test_implicit_params {
+    my ( $t, $api_path ) = @_;
+    $t->app->helper( 'yancy.hello' => sub { 'Hi there!' } );
+    my $helper_text = $t->app->yancy->hello;
+    my $new_person = {
+        name => 'Flexo', # overridden by x-parameters-implicit
+        email => undef,
+        id => 4,
+        age => 3,
+        contact => 0,
+        phone => undef,
+    };
+    $t->post_ok( $api_path . '/people' => json => $new_person )
+      ->status_is( 201 )
+      ->json_is( $new_person->{id} )
+      ;
+    is_deeply $backend->get( people => 4 ), { %$new_person, name => $helper_text };
+};
 
 sub test_api {
     my ( $t, $api_path ) = @_;

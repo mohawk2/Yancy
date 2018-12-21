@@ -490,6 +490,12 @@ to the relevant L<Yancy::Backend> method.
 
 There are additional configuration keys to alter how Yancy works.
 
+=head2 C<openapi_overlay>
+
+A JSON "overlay" to the spec can be passed in, as C<openapi_overlay>. This
+will be merged into the spec after the main spec is either loaded,
+or read from the backend with C<read_schema>.
+
 =head2 C<read_schema>
 
 When this is set, Yancy will read your backend to see what collections
