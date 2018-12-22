@@ -1,0 +1,89 @@
+{
+  "definitions": {
+    "LoginUser": {
+      "properties": {
+        "password": {
+          "x-input-only": true
+        }
+      }
+    },
+    "NewUser": {
+      "properties": {
+        "password": {
+          "x-input-only": true
+        }
+      }
+    },
+    "Article": {
+      "x-id-field": "slug",
+      "properties": {
+        "favorited": {
+          "x-artifact": true
+        },
+        "favoritesCount": {
+          "x-artifact": true
+        }
+      }
+    },
+    "User": {
+      "x-id-field": "username",
+      "properties": {
+        "token": {
+          "x-artifact": true
+        },
+        "follow": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/User"
+          }
+        },
+        "password_hash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "password_hash"
+      ]
+    },
+    "UpdateUser": {
+      "properties": {
+        "token": {
+          "x-artifact": true
+        }
+      }
+    },
+    "Profile": {
+      "x-view-of": "User",
+      "properties": {
+        "following": {
+          "x-artifact": true
+        }
+      }
+    },
+    "NewComment": {
+      "x-is-really": "Comment"
+    }
+  },
+  "paths": {
+    "/users": {
+      "x-parameters-implicit": {
+        "_current_user": {
+          "helper": "yancy.auth.current_user"
+        }
+      },
+      "x-id-field": "_current_user"
+    },
+    "/profiles/{username}/follow": {
+      "x-collection": "User"
+    },
+    "/articles/{slug}/favorite": {
+      "x-collection": "Article"
+    },
+    "/tags": {
+      "x-collection": "Article"
+    },
+    "/articles/{slug}/comments/{id}": {
+      "x-collection": "Comment"
+    }
+  }
+}
