@@ -27,7 +27,8 @@ use Mojo::Base '-strict';
 use Exporter 'import';
 use Mojo::Loader qw( load_class );
 use Scalar::Util qw( blessed );
-our @EXPORT_OK = qw( load_backend curry currym );
+use Math::BigInt;
+our @EXPORT_OK = qw( load_backend curry currym defs2mask );
 
 =sub load_backend
 
@@ -116,4 +117,66 @@ sub currym {
             $meth, blessed( $obj );
     return curry( $sub, $obj, @args );
 }
+
+=sub defs2mask
+
+Given a hashref that is the C<definitions> of an OpenAPI spec, returns a
+hashref that maps each definition name to a bitmask. The bitmask is set
+from each property name in that definition, according to its order in
+the complete sorted list of all property names in the definitions. Not
+exported. E.g.
+
+  # properties:
+  my $defs = {
+    d1 => {
+      properties => {
+        p1 => 'string',
+        p2 => 'string',
+      },
+    },
+    d2 => {
+      properties => {
+        p2 => 'string',
+        p3 => 'string',
+      },
+    },
+  };
+  my $mask = defs2mask($defs);
+  # all prop names, sorted: qw(p1 p2 p3)
+  # $mask:
+  {
+    d1 => (1 << 0) | (1 << 1),
+    d2 => (1 << 1) | (1 << 2),
+  }
+
+=cut
+
+# sorted list of all propnames
+sub _get_all_propnames {
+  my ($defs) = @_;
+  my %allprops;
+  for my $defname (keys %$defs) {
+    $allprops{$_} = 1 for keys %{ $defs->{$defname}{properties} };
+  }
+  [ sort keys %allprops ];
+}
+
+sub defs2mask {
+  my ($defs) = @_;
+  my $allpropnames = _get_all_propnames($defs);
+  my $count = 0;
+  my %prop2count;
+  for my $propname (@$allpropnames) {
+    $prop2count{$propname} = $count;
+    $count++;
+  }
+  my %def2mask;
+  for my $defname (keys %$defs) {
+    $def2mask{$defname} ||= Math::BigInt->new(0);
+    $def2mask{$defname} |= (Math::BigInt->new(1) << $prop2count{$_})
+      for keys %{ $defs->{$defname}{properties} };
+  }
+  \%def2mask;
+}
+
 1;

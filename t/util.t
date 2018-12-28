@@ -7,10 +7,11 @@ This tests the L<Yancy::Util> module's exported functions.
 
 use Mojo::Base '-strict';
 use Test::More;
-use Yancy::Util qw( load_backend curry currym );
+use Yancy::Util qw( load_backend curry currym defs2mask );
 use FindBin qw( $Bin );
 use Mojo::File qw( path );
 use lib "".path( $Bin, 'lib' );
+use Math::BigInt;
 
 my $collections = {
     foo => {},
@@ -67,5 +68,41 @@ subtest 'currym' => sub {
             'currym exception message is correct';
     };
 };
+
+# properties:
+my $defs = {
+  d1 => {
+    properties => {
+      p1 => 'string',
+      p2 => 'string',
+    },
+  },
+  d2 => {
+    properties => {
+      p2 => 'string',
+      p3 => 'string',
+    },
+  },
+};
+my $mask = defs2mask($defs);
+# all prop names, sorted: qw(p1 p2 p3)
+# $mask:
+my $expected = {
+  d1 => (1 << 0) | (1 << 1),
+  d2 => (1 << 1) | (1 << 2),
+};
+is_deeply $mask, $expected, 'basic mask check';
+
+$defs = +{ map {
+  my $defcount = $_;
+  (
+    sprintf("d%02d", $defcount) => { properties => {
+      map { (sprintf("p%03d", $_ + $defcount) => 'string') } (1..3)
+    } }
+  )
+} (1..70) };
+$mask = defs2mask($defs);
+is $mask->{d68} & $mask->{d70}, Math::BigInt->new(1) << 69,
+  'bigint-needing mask check';
 
 done_testing;
