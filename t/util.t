@@ -7,7 +7,7 @@ This tests the L<Yancy::Util> module's exported functions.
 
 use Mojo::Base '-strict';
 use Test::More;
-use Yancy::Util qw( load_backend curry currym defs2mask );
+use Yancy::Util qw( load_backend curry currym defs2mask definitions_non_fundamental );
 use FindBin qw( $Bin );
 use Mojo::File qw( path );
 use lib "".path( $Bin, 'lib' );
@@ -104,5 +104,310 @@ $defs = +{ map {
 $mask = defs2mask($defs);
 is $mask->{d68} & $mask->{d70}, Math::BigInt->new(1) << 69,
   'bigint-needing mask check';
+
+my $realworld_defs = {
+  "Article" => {
+    "properties" => {
+      "author" => {
+        "\$ref" => "#/definitions/Profile"
+      },
+      "body" => {
+        "type" => "string"
+      },
+      "createdAt" => {
+        "format" => "date-time",
+        "type" => "string"
+      },
+      "description" => {
+        "type" => "string"
+      },
+      "favorited" => {
+        "type" => "boolean"
+      },
+      "favoritesCount" => {
+        "type" => "integer"
+      },
+      "slug" => {
+        "type" => "string"
+      },
+      "tagList" => {
+        "items" => {
+          "type" => "string"
+        },
+        "type" => "array"
+      },
+      "title" => {
+        "type" => "string"
+      },
+      "updatedAt" => {
+        "format" => "date-time",
+        "type" => "string"
+      }
+    },
+    "required" => [
+      "slug",
+      "title",
+      "description",
+      "body",
+      "tagList",
+      "createdAt",
+      "updatedAt",
+      "favorited",
+      "favoritesCount",
+      "author"
+    ],
+    "type" => "object"
+  },
+  "Comment" => {
+    "properties" => {
+      "author" => {
+        "\$ref" => "#/definitions/Profile"
+      },
+      "body" => {
+        "type" => "string"
+      },
+      "createdAt" => {
+        "format" => "date-time",
+        "type" => "string"
+      },
+      "id" => {
+        "type" => "integer"
+      },
+      "updatedAt" => {
+        "format" => "date-time",
+        "type" => "string"
+      }
+    },
+    "required" => [
+      "id",
+      "createdAt",
+      "updatedAt",
+      "body",
+      "author"
+    ],
+    "type" => "object"
+  },
+  "GenericErrorModel" => {
+    "properties" => {
+      "errors" => {
+        "properties" => {
+          "body" => {
+            "items" => {
+              "type" => "string"
+            },
+            "type" => "array"
+          }
+        },
+        "required" => [
+          "body"
+        ],
+        "type" => "object"
+      }
+    },
+    "required" => [
+      "errors"
+    ],
+    "type" => "object"
+  },
+  "MultipleArticlesResponse" => {
+    "properties" => {
+      "articles" => {
+        "items" => {
+          "\$ref" => "#/definitions/Article"
+        },
+        "type" => "array"
+      },
+      "articlesCount" => {
+        "type" => "integer"
+      }
+    },
+    "required" => [
+      "articles",
+      "articlesCount"
+    ],
+    "type" => "object"
+  },
+  "MultipleCommentsResponse" => {
+    "properties" => {
+      "comments" => {
+        "items" => {
+          "\$ref" => "#/definitions/SingleCommentResponse"
+        },
+        "type" => "array"
+      }
+    },
+    "required" => [
+      "comments"
+    ],
+    "type" => "object"
+  },
+  "NewArticle" => {
+    "properties" => {
+      "body" => {
+        "type" => "string"
+      },
+      "description" => {
+        "type" => "string"
+      },
+      "tagList" => {
+        "items" => {
+          "type" => "string"
+        },
+        "type" => "array"
+      },
+      "title" => {
+        "type" => "string"
+      }
+    },
+    "required" => [
+      "title",
+      "description",
+      "body"
+    ],
+    "type" => "object"
+  },
+  "NewArticleRequest" => {
+    "properties" => {
+      "article" => {
+        "\$ref" => "#/definitions/NewArticle"
+      }
+    },
+    "required" => [
+      "article"
+    ],
+    "type" => "object"
+  },
+  "Profile" => {
+    "properties" => {
+      "bio" => {
+        "type" => "string"
+      },
+      "following" => {
+        "type" => "boolean"
+      },
+      "image" => {
+        "type" => "string"
+      },
+      "username" => {
+        "type" => "string"
+      }
+    },
+    "required" => [
+      "username",
+      "bio",
+      "image",
+      "following"
+    ],
+    "type" => "object"
+  },
+  "ProfileResponse" => {
+    "properties" => {
+      "profile" => {
+        "\$ref" => "#/definitions/Profile"
+      }
+    },
+    "required" => [
+      "profile"
+    ],
+    "type" => "object"
+  },
+  "SingleArticleResponse" => {
+    "properties" => {
+      "article" => {
+        "\$ref" => "#/definitions/Article"
+      }
+    },
+    "required" => [
+      "article"
+    ],
+    "type" => "object"
+  },
+  "SingleCommentResponse" => {
+    "properties" => {
+      "comment" => {
+        "\$ref" => "#/definitions/Comment"
+      }
+    },
+    "required" => [
+      "comment"
+    ],
+    "type" => "object"
+  },
+  "TagsResponse" => {
+    "properties" => {
+      "tags" => {
+        "items" => {
+          "type" => "string"
+        },
+        "type" => "array"
+      }
+    },
+    "required" => [
+      "tags"
+    ],
+    "type" => "object"
+  },
+  "UpdateArticle" => {
+    "properties" => {
+      "body" => {
+        "type" => "string"
+      },
+      "description" => {
+        "type" => "string"
+      },
+      "title" => {
+        "type" => "string"
+      }
+    },
+    "type" => "object"
+  },
+  "UpdateArticleRequest" => {
+    "properties" => {
+      "article" => {
+        "\$ref" => "#/definitions/UpdateArticle"
+      }
+    },
+    "required" => [
+      "article"
+    ],
+    "type" => "object"
+  },
+  "NewCommentRequest" => {
+    "properties" => {
+      "comment" => {
+        "\$ref" => "#/definitions/NewComment"
+      }
+    },
+    "required" => [
+      "comment"
+    ],
+    "type" => "object"
+  },
+  "NewComment" => {
+    "x-is-really" => "Comment",
+    "properties" => {
+      "body" => {
+        "type" => "string"
+      },
+    },
+    "type" => "object"
+  },
+};
+my $got = definitions_non_fundamental($realworld_defs);
+is_deeply $got, {
+  'GenericErrorModel' => undef,
+  'MultipleArticlesResponse' => \'Article',
+  'MultipleCommentsResponse' => \'Comment',
+  'NewArticle' => 'Article',
+  'NewArticleRequest' => 'Article',
+  'NewComment' => 'Comment',
+  'NewCommentRequest' => 'Comment',
+  'ProfileResponse' => 'Profile',
+  'SingleArticleResponse' => 'Article',
+  'SingleCommentResponse' => 'Comment',
+  'TagsResponse' => \undef,
+  'UpdateArticle' => 'Article',
+  'UpdateArticleRequest' => 'Article',
+}, 'definitions_non_fundamental' or diag explain $got;
 
 done_testing;

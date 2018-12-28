@@ -28,7 +28,7 @@ use Exporter 'import';
 use Mojo::Loader qw( load_class );
 use Scalar::Util qw( blessed );
 use Math::BigInt;
-our @EXPORT_OK = qw( load_backend curry currym defs2mask );
+our @EXPORT_OK = qw( load_backend curry currym defs2mask definitions_non_fundamental );
 
 =sub load_backend
 
@@ -177,6 +177,153 @@ sub defs2mask {
       for keys %{ $defs->{$defname}{properties} };
   }
   \%def2mask;
+}
+
+=sub definitions_non_fundamental
+
+Given the C<definitions> of an OpenAPI spec, will return a hash-ref
+mapping names of definitions considered non-fundamental to a
+value. The value is either the name of another definition that I<is>
+fundamental, or or C<undef> if it just contains e.g. a string. It will
+instead be a reference to such a value if it is to an array of such.
+
+This may be used e.g. to determine the "real" input or output of an
+OpenAPI operation.
+
+Non-fundamental is determined according to these heuristics:
+
+=over
+
+=item *
+
+object definitions with key C<x-is-really> are "really" that value
+
+=item *
+
+object definitions that only have one property (which the author calls
+"thin objects"), or that have two properties, one of whose names has
+the substring "count" (case-insensitive).
+
+=item *
+
+object definitions that have all the same properties as another, and
+are not the shortest-named one between the two.
+
+=item *
+
+object definitions whose properties are a strict subset of another.
+
+=back
+
+=cut
+
+# heuristic 0: strip out "x-is-really"
+sub _strip_is_really {
+  my ($defs) = @_;
+  my %other2real = map {
+    $_ => $defs->{$_}{'x-is-really'}
+  } grep $defs->{$_}{'x-is-really'}, keys %$defs;
+  \%other2real;
+}
+
+# heuristic 1: strip out single-item objects - RHS = ref if array
+sub _strip_thin {
+  my ($defs, $other2real) = @_;
+  my %thin2real = map {
+    my $theseprops = $defs->{$_}{properties};
+    my @props = grep !/count/i, keys %$theseprops;
+    my $real = @props == 1 ? $theseprops->{$props[0]} : undef;
+    my $is_array = $real = $real->{items}
+      if $real and ($real->{type} // '') eq 'array';
+    $real = $real->{'$ref'} if $real;
+    $real = _ref2def($real) if $real;
+    @props == 1 ? ($_ => $is_array ? \$real : $real) : ()
+  } grep !$other2real->{$_}, keys %$defs;
+  \%thin2real;
+}
+
+# heuristic 2: find objects with same propnames, drop those with longer names
+sub _strip_dup {
+  my ($defs, $def2mask, $reffed, $other2real) = @_;
+  my %sig2names;
+  push @{ $sig2names{$def2mask->{$_}} }, $_ for keys %$def2mask;
+  my @nondups = grep @{ $sig2names{$_} } == 1, keys %sig2names;
+  delete @sig2names{@nondups};
+  my %dup2real;
+  for my $sig (keys %sig2names) {
+    next if grep $other2real->{$_} || $reffed->{$_}, @{ $sig2names{$sig} };
+    my @names = sort { (length $a <=> length $b) } @{ $sig2names{$sig} };
+    my $real = shift @names; # keep the first i.e. shortest
+    $dup2real{$_} = $real for @names;
+  }
+  \%dup2real;
+}
+
+# heuristic 3: find objects with set of propnames that is subset of
+#   another object's propnames
+sub _strip_subset {
+  my ($defs, $def2mask, $reffed, $other2real) = @_;
+  my %subset2real;
+  for my $defname (keys %$defs) {
+    next if $reffed->{$defname} or $other2real->{$defname};
+    my $thismask = $def2mask->{$defname};
+    for my $supersetname (grep $_ ne $defname, keys %$defs) {
+      my $supermask = $def2mask->{$supersetname};
+      next if $thismask == $supermask;
+      next unless ($thismask & $supermask) == $thismask;
+      $subset2real{$defname} = $supersetname;
+    }
+  }
+  \%subset2real;
+}
+
+sub _maybe_deref { ref($_[0]) ? ${$_[0]} : $_[0] }
+
+sub _map_thru {
+  my ($x2y) = @_;
+  my %mapped = %$x2y;
+  for my $fake (keys %mapped) {
+    my $real = $mapped{$fake};
+    next if !_maybe_deref $real;
+    $mapped{$_} = (ref $mapped{$_} ? \$real : $real) for
+      grep $fake eq _maybe_deref($mapped{$_}),
+      grep _maybe_deref($mapped{$_}),
+      keys %mapped;
+  }
+  \%mapped;
+}
+
+sub _ref2def {
+  my ($ref) = @_;
+  $ref =~ s:^#/definitions/:: or return;
+  $ref;
+}
+
+sub _find_referenced {
+  my ($defs, $thin2real) = @_;
+  my %reffed;
+  for my $defname (grep !$thin2real->{$_}, keys %$defs) {
+    my $theseprops = $defs->{$defname}{properties} || {};
+    for my $propname (keys %$theseprops) {
+      if (my $ref = $theseprops->{$propname}{'$ref'}
+        || ($theseprops->{$propname}{items} && $theseprops->{$propname}{items}{'$ref'})
+      ) {
+        $reffed{ _ref2def($ref) } = 1;
+      }
+    }
+  }
+  \%reffed;
+}
+
+sub definitions_non_fundamental {
+  my ($defs) = @_;
+  my $other2real = _strip_is_really($defs);
+  my $thin2real = _strip_thin($defs, $other2real);
+  my $def2mask = defs2mask($defs);
+  my $reffed = _find_referenced($defs, $thin2real);
+  my $dup2real = _strip_dup($defs, $def2mask, $reffed, $other2real);
+  my $subset2real = _strip_subset($defs, $def2mask, $reffed, $other2real);
+  _map_thru({ %$other2real, %$thin2real, %$dup2real, %$subset2real });
 }
 
 1;
