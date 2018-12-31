@@ -588,7 +588,7 @@ use Mojo::JSON qw( decode_json );
 use Mojo::Loader qw( load_class );
 use Mojo::Util qw( url_escape );
 use Sys::Hostname qw( hostname );
-use Yancy::Util qw( load_backend curry );
+use Yancy::Util qw( load_backend curry definitions_non_fundamental );
 use JSON::Validator::OpenAPI::Mojolicious;
 
 has _filters => sub { {} };
@@ -737,7 +737,7 @@ sub _ensure_json_data {
 }
 
 sub _openapi_find_collection_name {
-    my ( $self, $path, $pathspec ) = @_;
+    my ( $self, $path, $pathspec, $def2non_fundamental ) = @_;
     return $pathspec->{'x-collection'} if $pathspec->{'x-collection'};
     my $collection;
     for my $method ( grep !/^(parameters$|x-)/, keys %{ $pathspec } ) {
@@ -761,6 +761,9 @@ sub _openapi_find_collection_name {
             ( $schema->{items} && $schema->{items}{'$ref'} ) ||
             ( $schema->{properties} && $schema->{properties}{items} && $schema->{properties}{items}{'$ref'} );
         next unless $this_ref =~ s:^#/definitions/::;
+        $this_ref = $def2non_fundamental->{ $this_ref }
+            if $def2non_fundamental->{ $this_ref };
+        $this_ref = $$this_ref if ref $this_ref; # scalar-ref if array
         die "$method '$path' = $this_ref but also '$collection'"
             if $this_ref and $collection and $this_ref ne $collection;
         $collection = $this_ref;
@@ -775,9 +778,10 @@ sub _openapi_find_collection_name {
 # mutates $spec
 sub _openapi_spec_add_mojo {
     my ( $self, $spec, $config ) = @_;
+    my $def2non_fundamental = definitions_non_fundamental( $spec->{definitions} );
     for my $path ( keys %{ $spec->{paths} } ) {
         my $pathspec = $spec->{paths}{ $path };
-        my $collection = $self->_openapi_find_collection_name( $path, $pathspec );
+        my $collection = $self->_openapi_find_collection_name( $path, $pathspec, $def2non_fundamental );
         die "Path '$path' had non-existent collection '$collection'"
             if !$spec->{definitions}{$collection};
         for my $method ( grep !/^(parameters$|x-)/, keys %{ $pathspec } ) {
