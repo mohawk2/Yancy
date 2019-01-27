@@ -679,7 +679,8 @@ sub register {
     my $spec;
     if ( $config->{openapi} ) {
         $spec = $config->{openapi};
-        $config->{collections} = $spec->{definitions}; # for yancy.backend etc
+        # for yancy.backend etc
+        $config->{collections} = _openapi_to_jsonschema( $spec );
     }
     else {
         # Merge configuration
@@ -734,6 +735,56 @@ sub register {
     $formats->{ password } = sub { undef };
     $formats->{ markdown } = sub { undef };
     $formats->{ tel } = sub { undef };
+}
+
+# just the definitions
+sub _jsonschema_to_openapi {
+    my ( $spec ) = @_;
+    $spec = _props_walk( $spec, sub {
+        my ( $p ) = @_;
+        $p = { %$p };
+        if ( my $ref = $p->{'$ref'} ) {
+            $ref =~ s:^#:#/definitions:;
+            $p->{'$ref'} = $ref;
+            return $p;
+        }
+        # the JSON schema for OpenAPI 2 allows array, so we will here too
+#        if ( ref $p->{type} eq 'ARRAY' ) {
+#            $p->{type} = $p->{type}[0];
+#        }
+        $p;
+    } );
+    my @valid_collections = grep !$spec->{ $_ }{'x-ignore'}, keys %$spec;
+    +{ map {$_=>$spec->{$_}} @valid_collections };
+}
+
+# just the definitions
+sub _openapi_to_jsonschema {
+    my ( $spec ) = @_;
+    _props_walk( $spec->{definitions}, sub {
+        my ( $p ) = @_;
+        $p = { %$p };
+        if ( my $ref = $p->{'$ref'} ) {
+            $ref =~ s:^#/definitions:#:;
+            $p->{'$ref'} = $ref;
+            return $p;
+        }
+        $p;
+    } );
+}
+
+sub _props_walk {
+    my ( $spec, $transform ) = @_;
+    $spec = dclone $spec; # so can mutate at will
+    for my $collection ( keys %$spec ) {
+        my $c = $spec->{ $collection };
+        next if $c->{'x-ignore'};
+        my $props = $c->{properties};
+        for my $propname ( keys %$props ) {
+            $props->{ $propname } = $transform->( $props->{ $propname } );
+        }
+    }
+    $spec;
 }
 
 # if false or a ref, just returns same
@@ -859,7 +910,8 @@ sub _openapi_spec_infer_mojo {
 
 sub _openapi_spec_from_schema {
     my ( $self, $config ) = @_;
-    my ( %definitions, %paths );
+    my %paths;
+    my %definitions = %{ _jsonschema_to_openapi( $config->{collections} ) };
     my %parameters = (
         '$limit' => {
             name => '$limit',
@@ -881,17 +933,15 @@ sub _openapi_spec_from_schema {
             description => 'How to sort the list. A string containing one of "asc" (to sort in ascending order) or "desc" (to sort in descending order), followed by a ":", followed by the field name to sort by.',
         },
     );
-    for my $coll ( keys %{ $config->{collections} } ) {
+    for my $coll ( keys %definitions ) {
         # Set some defaults so users don't have to type as much
-        my $schema = $config->{collections}{ $coll };
+        my $schema = $definitions{ $coll };
         next if $schema->{ 'x-ignore' };
         my $id_field = $schema->{ 'x-id-field' } // 'id';
         my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
         my $props = $schema->{properties}
-            || $config->{collections}{ $real_coll }{properties};
+            || $definitions{ $real_coll }{properties};
         my %props = %$props;
-
-        $definitions{ $coll } = $schema;
 
         for my $prop ( keys %props ) {
             $props{ $prop }{ type } ||= 'string';

@@ -58,6 +58,9 @@
                "type" : "string",
                "x-order" : 3
             },
+            "user" : {
+               "$ref" : "#/definitions/user"
+            },
             "user_id" : {
                "type" : [
                   "integer",

@@ -14,7 +14,7 @@ CREATE TABLE `user` (
     `password` VARCHAR(255) NOT NULL,
     `access` ENUM ( 'user', 'moderator', 'admin' ) NOT NULL DEFAULT 'user',
     `age` INTEGER DEFAULT NULL
-);
+) ENGINE=InnoDB;
 CREATE TABLE blog (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     user_id INTEGER,
@@ -22,8 +22,9 @@ CREATE TABLE blog (
     slug VARCHAR(255),
     markdown VARCHAR(255) NOT NULL,
     html VARCHAR(255),
-    is_published BOOLEAN NOT NULL DEFAULT FALSE
-);
+    is_published BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES `user` (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 CREATE TABLE mojo_migrations (
     name VARCHAR(255) UNIQUE NOT NULL,
     version BIGINT NOT NULL

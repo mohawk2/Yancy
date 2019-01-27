@@ -71,7 +71,7 @@ sub get_p {
     my $db = $self->mojodb->db;
     return $db->select_p(
         $real_coll,
-        [ keys %$props ],
+        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
         { $id_field => $id },
     )->then( sub { $self->normalize( $coll, shift->hash ) } );
 }

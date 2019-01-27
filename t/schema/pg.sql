@@ -23,7 +23,8 @@ CREATE TABLE blog (
     slug TEXT,
     markdown TEXT NOT NULL,
     html TEXT,
-    is_published BOOLEAN NOT NULL DEFAULT FALSE
+    is_published BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS mojo_migrations (
     name TEXT UNIQUE NOT NULL,

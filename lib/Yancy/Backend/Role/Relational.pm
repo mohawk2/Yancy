@@ -107,7 +107,11 @@ Self-explanatory, implements L<Yancy::Backend/list>.
 
 =head2 read_schema
 
-Self-explanatory, implements L<Yancy::Backend/read_schema>.
+Implements L<Yancy::Backend/read_schema>.
+
+Understands foreign key relationships, and uses them to include properties
+that are C<$ref> links to other collections. A heuristic is used to name
+the property based on the foreign-key column name.
 
 =head1 SEE ALSO
 
@@ -119,6 +123,10 @@ use Mojo::Base '-role';
 use Scalar::Util qw( blessed looks_like_number );
 use Mojo::JSON qw( true encode_json );
 use Carp qw( croak );
+use Yancy::Util qw( copy_inline_refs );
+use SQL::Abstract::Prefetch;
+
+has 'prefetch';
 
 use DBI ':sql_types';
 # only specify non-string - code-ref called with column_info row
@@ -203,7 +211,15 @@ sub new {
         mojodb => $backend,
         collections => $collections,
     );
-    Mojo::Base::new( $class, %vars );
+    my $self = Mojo::Base::new( $class, %vars );
+    $self->{prefetch} = SQL::Abstract::Prefetch->new(
+        abstract => $self->mojodb_abstract,
+        dbhgetter => sub { $self->mojodb->db->dbh },
+        dbcatalog => $self->dbcatalog,
+        dbschema => $self->dbschema,
+        filter_table => sub { $class->filter_table( @_ ) },
+    );
+    $self;
 }
 
 sub id_field {
@@ -220,7 +236,7 @@ sub list_sqls {
         || $self->collections->{ $real_coll }{properties};
     my ( $query, @params ) = $mojodb->abstract->select(
         $real_coll,
-        [ keys %$props ],
+        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
         $params,
         $opt->{order_by},
     );
@@ -294,7 +310,7 @@ sub get {
         || $self->collections->{ $real_coll }{properties};
     my $ret = $self->mojodb->db->select(
         $real_coll,
-        [ keys %$props ],
+        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
         { $id_field => $id },
     )->hash;
     return $self->normalize( $coll, $ret );
@@ -316,18 +332,17 @@ sub read_schema {
     my ( $self, @table_names ) = @_;
     my %schema;
     my $db = $self->mojodb->db;
-    my $given_tables = @table_names;
     my ( $dbcatalog, $dbschema ) = ( scalar $self->dbcatalog, scalar $self->dbschema );
-    @table_names = grep $self->filter_table($_), map $_->{TABLE_NAME}, @{ $db->dbh->table_info(
+    my @all_tables = grep $self->filter_table($_), map $_->{TABLE_NAME}, @{ $db->dbh->table_info(
         $dbcatalog, $dbschema, undef, 'TABLE'
-    )->fetchall_arrayref( { TABLE_NAME => 1 } ) } if !@table_names;
-    s/\W//g for @table_names; # PostgreSQL quotes "user"
-    for my $table ( @table_names ) {
+    )->fetchall_arrayref( { TABLE_NAME => 1 } ) };
+    s/\W//g for @all_tables; # PostgreSQL quotes "user"
+    for my $table ( @all_tables ) {
         # ; say "Got table $table";
         $schema{ $table }{type} = 'object';
         my $stats_info = $db->dbh->statistics_info(
             $dbcatalog, $dbschema, $table, 1, 1
-        )->fetchall_arrayref( { COLUMN_NAME => 1 } );
+        )->fetchall_arrayref( {} );
         my $columns = $db->dbh->column_info( $dbcatalog, $dbschema, $table, undef )->fetchall_arrayref( {} );
         my %is_pk = map {$_=>1} $db->dbh->primary_key( $dbcatalog, $dbschema, $table );
         my @unique_columns = grep !$is_pk{ $_ },
@@ -376,7 +391,23 @@ sub read_schema {
             $schema{ $table }{ 'x-ignore' } = 1;
         }
     }
-    return $given_tables ? @schema{ @table_names } : \%schema;
+    for my $table ( @all_tables ) {
+        my $fkall = $self->prefetch->dbspec->{ $table };
+        for my $fromlabel ( keys %$fkall ) {
+            my $fkinfo = $fkall->{ $fromlabel };
+            next if $fkinfo->{type} ne 'single';
+            my $to = $fkinfo->{totable};
+            $schema{ $table }{properties}{ $fromlabel } = { '$ref' => "#/$to" };
+        }
+    }
+    my @ret = @table_names
+        ? map copy_inline_refs( \%schema, "/$_" ), @table_names
+        : \%schema;
+    if ( !wantarray ) {
+        croak "Scalar context but >1 return value" if @ret > 1;
+        return $ret[0];
+    }
+    @ret;
 }
 
 1;

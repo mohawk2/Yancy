@@ -118,6 +118,9 @@ END {
               'x-order' => 7,
               default => false,
             },
+            user => {
+              '$ref' => '#/user',
+            },
         },
     },
     mojo_migrations => {
@@ -632,6 +635,7 @@ sub test_backend {
                     markdown => { type => 'string', 'x-order' => 5 },
                     html => { type => [ 'string', 'null' ], 'x-order' => 6 },
                     is_published => { type => 'boolean', 'x-order' => 7, default => false },
+                    user => { '$ref' => '#/user' },
                 },
             },
             mojo_migrations => {

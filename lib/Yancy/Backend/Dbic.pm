@@ -120,6 +120,8 @@ with 'Yancy::Backend::Role::Sync';
 use Scalar::Util qw( looks_like_number blessed );
 use Mojo::Loader qw( load_class );
 use Mojo::JSON qw( true encode_json );
+use Carp qw( croak );
+use Yancy::Util qw( copy_inline_refs );
 require Yancy::Backend::Role::Relational;
 
 has collections => ;
@@ -186,7 +188,7 @@ sub get {
     my $ret = $self->_rs(
         $real_coll,
         undef,
-        { select => [ keys %$props ] },
+        { select => [ grep !$props->{ $_ }{'$ref'}, keys %$props ] },
     )->find( { $id_field => $id } );
     return $self->_normalize( $coll, $ret );
 }
@@ -200,7 +202,7 @@ sub list {
         || $self->collections->{ $real_coll }{properties};
     my %rs_opt = (
         order_by => $opt->{order_by},
-        select => [ keys %$props ],
+        select => [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
     );
     if ( $opt->{limit} ) {
         die "Limit must be number" if !looks_like_number $opt->{limit};
@@ -255,8 +257,7 @@ sub read_schema {
     my ( $self, @table_names ) = @_;
     my %schema;
 
-    my @tables = @table_names ? @table_names : $self->dbic->sources;
-    for my $table ( @tables ) {
+    for my $table ( $self->dbic->sources ) {
         # ; say "Got table $table";
         my $source = $self->dbic->source( $table );
         my $result_class = $source->result_class;
@@ -295,8 +296,26 @@ sub read_schema {
             $schema{ $table }{ 'x-id-field' } = $pk;
         }
     }
+    for my $table ( $self->dbic->sources ) {
+        my $source = $self->dbic->source( $table );
+        for my $relation ( $source->relationships ) {
+            my $r = $source->relationship_info( $relation );
+            my $to = $r->{class};
+            $to =~ s#.*:##; # get the last part of classname
+            if ( $r->{attrs}{accessor} eq 'single' ) {
+                $schema{ $table }{properties}{ $relation } = { '$ref' => "#/$to" };
+            }
+        }
+    }
 
-    return @table_names ? @schema{ @table_names } : \%schema;
+    my @ret = @table_names
+        ? map copy_inline_refs( \%schema, "/$_" ), @table_names
+        : \%schema;
+    if ( !wantarray ) {
+        croak "Scalar context but >1 return value" if @ret > 1;
+        return $ret[0];
+    }
+    @ret;
 }
 
 sub _map_type {

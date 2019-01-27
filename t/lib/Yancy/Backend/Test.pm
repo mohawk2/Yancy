@@ -7,6 +7,8 @@ use Mojo::JSON qw( from_json to_json encode_json );
 use Mojo::File qw( path );
 use Storable qw( dclone );
 use Role::Tiny qw( with );
+use Carp qw( croak );
+use Yancy::Util qw( copy_inline_refs );
 with 'Yancy::Backend::Role::Sync';
 
 our %COLLECTIONS;
@@ -228,7 +230,14 @@ sub read_schema {
             delete @$p{ qw(format description pattern title) };
         }
     }
-    return @table_names ? @$cloned{ @table_names } : $cloned;
+    my @ret = @table_names
+        ? map copy_inline_refs( $cloned, "/$_" ), @table_names
+        : $cloned;
+    if ( !wantarray ) {
+        croak "Scalar context but >1 return value" if @ret > 1;
+        return $ret[0];
+    }
+    @ret;
 }
 
 1;

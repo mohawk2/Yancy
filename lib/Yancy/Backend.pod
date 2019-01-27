@@ -262,7 +262,14 @@ for arguments and return values.
     my $schema = $be->read_schema;
     my $table = $be->read_schema( $table_name );
 
-Read the schema from the database tables. Returns an OpenAPI schema
+Read the schema from the database tables. Returns a JSON Schema
 ready to be merged into the user's configuration. Can be restricted
 to only a single table.
 
+Note this is a slightly different thing from an OpenAPI schema: primarily
+that since the "shape" is different, any inter-object C<$ref> will
+obviously need to have a different value.
+
+While in an OpenAPI 2 schema an object property's C<type> is specified as
+being only a single value, not an array, the JSON Schema for OpenAPI 2
+specification allows arrays, i.e. multi types. Therefore, so does Yancy.
