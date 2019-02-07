@@ -35,6 +35,7 @@ my %WriteMakefileArgs = (
     "Mojolicious" => "7.79",
     "Mojolicious::Plugin::OpenAPI" => "2.12",
     "Role::Tiny" => "2.000001",
+    "SQL::Abstract::Pg" => 0,
     "Scalar::Util" => 0,
     "Sys::Hostname" => 0,
     "Text::Balanced" => 0

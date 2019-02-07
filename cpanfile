@@ -6,6 +6,7 @@ requires "JSON::Validator" => "3.02";
 requires "Mojolicious" => "7.79";
 requires "Mojolicious::Plugin::OpenAPI" => "2.12";
 requires "Role::Tiny" => "2.000001";
+requires "SQL::Abstract::Pg" => "0";
 requires "Scalar::Util" => "0";
 requires "Sys::Hostname" => "0";
 requires "Text::Balanced" => "0";
