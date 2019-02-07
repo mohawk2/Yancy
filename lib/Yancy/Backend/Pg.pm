@@ -127,6 +127,7 @@ BEGIN {
     eval { require Mojo::Pg; Mojo::Pg->VERSION( 4.03 ); 1 }
         or die "Could not load Pg backend: Mojo::Pg version 4.03 or higher required\n";
 }
+use SQL::Abstract::Pg;
 
 our %IGNORE_TABLE = (
     mojo_migrations => 1,
@@ -140,6 +141,9 @@ has collections =>;
 has mojodb =>;
 use constant mojodb_class => 'Mojo::Pg';
 use constant mojodb_prefix => 'postgresql';
+use constant mojodb_abstract => SQL::Abstract::Pg->new(
+    name_sep => '.', quote_char => '"',
+);
 
 sub dbcatalog { undef }
 sub dbschema {

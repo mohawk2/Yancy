@@ -122,11 +122,15 @@ BEGIN {
     eval { require Mojo::SQLite; Mojo::SQLite->VERSION( 3 ); 1 }
         or die "Could not load SQLite backend: Mojo::SQLite version 3 or higher required\n";
 }
+use SQL::Abstract::Pg;
 
 has collections =>;
 has mojodb =>;
 use constant mojodb_class => 'Mojo::SQLite';
 use constant mojodb_prefix => 'sqlite';
+use constant mojodb_abstract => SQL::Abstract::Pg->new(
+    name_sep => '.', quote_char => '"',
+);
 
 use constant q_tables => q{SELECT sql FROM SQLITE_MASTER WHERE type='table' and name = ?};
 

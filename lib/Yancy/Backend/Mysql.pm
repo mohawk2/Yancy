@@ -126,6 +126,7 @@ BEGIN {
     eval { require Mojo::mysql; Mojo::mysql->VERSION( 1.05 ); 1 }
         or die "Could not load Mysql backend: Mojo::mysql version 1.05 or higher required\n";
 }
+use SQL::Abstract::Pg;
 
 our %IGNORE_TABLE = (
     mojo_migrations => 1,
@@ -143,6 +144,9 @@ has collections =>;
 has mojodb =>;
 use constant mojodb_class => 'Mojo::mysql';
 use constant mojodb_prefix => 'mysql';
+use constant mojodb_abstract => SQL::Abstract::Pg->new(
+    name_sep => '.', quote_char => '`',
+);
 
 sub dbcatalog { undef }
 sub dbschema {

@@ -29,6 +29,11 @@ String naming the C<Mojo::*> class.
 
 String with the value at the start of a L<DBI> C<dsn>.
 
+=head2 mojodb_abstract
+
+An L<SQL::Abstract::Pg> or subclass. Must set C<name_sep> and
+C<quote_char> correctly.
+
 =head2 filter_table
 
 Called with a table name, returns a boolean of true to keep, false
@@ -175,23 +180,24 @@ my %IGNORE_TABLE = (
 );
 
 requires qw(
-    mojodb mojodb_class mojodb_prefix
+    mojodb mojodb_class mojodb_prefix mojodb_abstract
     dbcatalog dbschema
     filter_table fixup_default column_info_extra
 );
 
 sub new {
     my ( $class, $backend, $collections ) = @_;
+    my %attr = ( abstract => $class->mojodb_abstract );
     if ( !ref $backend ) {
         my $found = (my $connect = $backend) =~ s#^.*?:##;
         $backend = $class->mojodb_class->new( $found ? $class->mojodb_prefix.":$connect" : () );
     }
     elsif ( !blessed $backend ) {
-        my $attr = $backend;
+        %attr = ( %attr, %$backend );
         $backend = $class->mojodb_class->new;
-        for my $method ( keys %$attr ) {
-            $backend->$method( $attr->{ $method } );
-        }
+    }
+    for my $method ( keys %attr ) {
+        $backend->$method( $attr{ $method } );
     }
     my %vars = (
         mojodb => $backend,
