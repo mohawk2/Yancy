@@ -292,6 +292,7 @@ subtest 'create' => sub {
     my $blog_id = eval { $t->app->yancy->create( blog => { %{ $new_blog } }) };
     ok !$@, 'create() lives' or diag explain $@;
     $new_blog->{id} = $blog_id;
+    $new_blog->{user} = $items{user}[0];
     is_deeply $backend->get( blog => $blog_id ), $new_blog;
 
     my $count = $backend->list( 'people' )->{total};

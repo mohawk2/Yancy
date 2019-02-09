@@ -121,13 +121,14 @@ use Scalar::Util qw( looks_like_number blessed );
 use Mojo::Loader qw( load_class );
 use Mojo::JSON qw( true encode_json );
 use Carp qw( croak );
-use Yancy::Util qw( copy_inline_refs );
+use Yancy::Util qw( copy_inline_refs queryspec_from_schema );
 require Yancy::Backend::Role::Relational;
 
 has collections => ;
 has dbic =>;
 
 *_normalize = \&Yancy::Backend::Role::Relational::normalize;
+*id_field = \&Yancy::Backend::Role::Relational::id_field;
 
 sub new {
     my ( $class, $backend, $collections ) = @_;
@@ -164,7 +165,7 @@ sub _rs {
 
 sub _find {
     my ( $self, $coll, $id ) = @_;
-    my $id_field = $self->collections->{ $coll }{ 'x-id-field' } || 'id';
+    my $id_field = $self->id_field( $coll );
     return $self->dbic->resultset( $coll )->find( { $id_field => $id } );
 }
 
@@ -174,21 +175,37 @@ sub create {
     die "No refs allowed in '$coll': " . encode_json $params
         if grep ref, values %$params;
     my $created = $self->dbic->resultset( $coll )->create( $params );
-    my $id_field = $self->collections->{ $coll }{ 'x-id-field' } || 'id';
+    my $id_field = $self->id_field( $coll );
     return $created->$id_field;
+}
+
+sub _generate_prefetch {
+    my ( $self, $spec ) = @_;
+    my $single = $spec->{single} || {};
+    +{
+        (map { $_ => $self->_generate_prefetch( $single->{ $_ } ) }
+            sort keys %$single),
+    };
+}
+
+sub _generate_rs_opts {
+    my ( $self, $spec ) = @_;
+    my %rs_opts = (
+        select => [ map @$_, @$spec{qw( keys fields )} ],
+        prefetch => $self->_generate_prefetch( $spec ),
+    );
+    %rs_opts;
 }
 
 sub get {
     my ( $self, $coll, $id ) = @_;
     my $schema = $self->collections->{ $coll };
-    my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
-    my $props = $schema->{properties}
-        || $self->collections->{ $real_coll }{properties};
-    my $id_field = $schema->{ 'x-id-field' } || 'id';
+    my $id_field = $self->id_field( $coll );
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
     my $ret = $self->_rs(
-        $real_coll,
+        $queryspec->{table},
         undef,
-        { select => [ grep !$props->{ $_ }{'$ref'}, keys %$props ] },
+        { $self->_generate_rs_opts( $queryspec ) } ,
     )->find( { $id_field => $id } );
     return $self->_normalize( $coll, $ret );
 }
@@ -200,10 +217,12 @@ sub list {
     my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
     my $props = $schema->{properties}
         || $self->collections->{ $real_coll }{properties};
-    my %rs_opt = (
-        order_by => $opt->{order_by},
-        select => [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
-    );
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
+    $params = { map { (
+        exists $props->{ $_ } ? "me.$_" : $_
+    ) => $params->{ $_ } } keys %$params };
+    my %rs_opt = $self->_generate_rs_opts( $queryspec );
+    $rs_opt{order_by} = _order_by( $opt->{order_by}, 'me' ) if $opt->{order_by};
     if ( $opt->{limit} ) {
         die "Limit must be number" if !looks_like_number $opt->{limit};
         $rs_opt{ rows } = $opt->{limit};
@@ -217,6 +236,21 @@ sub list {
         items => [ map $self->_normalize( $coll, $_ ), $rs->all ],
         total => $self->_rs( $coll, $params )->count,
     };
+}
+
+sub _order_by {
+    my ( $order, $talias ) = @_;
+    return undef if !$order;
+    if ( ref $order eq 'ARRAY' ) {
+        return [ map _order_by( $_, $talias ), @$order ];
+    }
+    elsif ( ref $order eq 'HASH' ) {
+        my @o_b = %$order;
+        return { $o_b[0] => "$talias.$o_b[1]" };
+    }
+    else {
+        return "$talias.$order";
+    }
 }
 
 sub set {

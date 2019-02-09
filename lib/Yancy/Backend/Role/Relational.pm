@@ -126,10 +126,10 @@ L<Yancy::Backend>
 =cut
 
 use Mojo::Base '-role';
-use Scalar::Util qw( blessed looks_like_number );
+use Scalar::Util qw( blessed );
 use Mojo::JSON qw( true encode_json );
 use Carp qw( croak );
-use Yancy::Util qw( copy_inline_refs );
+use Yancy::Util qw( copy_inline_refs queryspec_from_schema );
 use SQL::Abstract::Prefetch;
 
 has 'prefetch';
@@ -239,31 +239,19 @@ sub pk_field {
 }
 
 sub list_sqls {
-    my ( $self, $coll, $params, $opt ) = @_;
+    my ( $self, $coll, $params, $opt, $queryspec ) = @_;
     my $mojodb = $self->mojodb;
-    my $schema = $self->collections->{ $coll };
-    my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
-    my $props = $schema->{properties}
-        || $self->collections->{ $real_coll }{properties};
-    my ( $query, @params ) = $mojodb->abstract->select(
-        $real_coll,
-        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
+    my $prefetch = $self->prefetch;
+    my ( $query, @params ) = $prefetch->select_from_queryspec(
+        $queryspec,
         $params,
-        $opt->{order_by},
+        $opt,
     );
     my ( $total_query, @total_params ) = $mojodb->abstract->select(
-        $real_coll,
+        $queryspec->{table},
         [ \'COUNT(*) as total' ],
         $params,
     );
-    if ( scalar grep defined, @{ $opt }{qw( limit offset )} ) {
-        die "Limit must be number" if $opt->{limit} && !looks_like_number $opt->{limit};
-        $query .= ' LIMIT ' . ( $opt->{limit} // 2**32 );
-        if ( $opt->{offset} ) {
-            die "Offset must be number" if !looks_like_number $opt->{offset};
-            $query .= ' OFFSET ' . $opt->{offset};
-        }
-    }
     #; say $query;
     return ( $query, $total_query, @params );
 }
@@ -315,15 +303,17 @@ sub set {
 sub get {
     my ( $self, $coll, $id ) = @_;
     my $id_field = $self->id_field( $coll );
-    my $schema = $self->collections->{ $coll };
-    my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
-    my $props = $schema->{properties}
-        || $self->collections->{ $real_coll }{properties};
-    my $ret = $self->mojodb->db->select(
-        $real_coll,
-        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
+    my $prefetch = $self->prefetch;
+    my ( $extractspec ) = $prefetch->extractspec_from_queryspec( $queryspec );
+    my ( $sql, @bind ) = $prefetch->select_from_queryspec(
+        $queryspec,
         { $id_field => $id },
-    )->hash;
+    );
+    return unless my ( $ret ) = $prefetch->extract_from_query(
+        $extractspec,
+        $self->mojodb->db->query( $sql, @bind )->sth,
+    );
     return $self->normalize( $coll, $ret );
 }
 
@@ -331,10 +321,16 @@ sub list {
     my ( $self, $coll, $params, $opt ) = @_;
     $params ||= {}; $opt ||= {};
     my $mojodb = $self->mojodb;
-    my ( $query, $total_query, @params ) = $self->list_sqls( $coll, $params, $opt );
-    my $items = $mojodb->db->query( $query, @params )->hashes;
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
+    my $prefetch = $self->prefetch;
+    my ( $extractspec ) = $prefetch->extractspec_from_queryspec( $queryspec );
+    my ( $query, $total_query, @params ) = $self->list_sqls( $coll, $params, $opt, $queryspec );
+    my @items = $prefetch->extract_from_query(
+        $extractspec,
+        $mojodb->db->query( $query, @params )->sth,
+    );
     return {
-        items => [ map $self->normalize( $coll, $_ ), @$items ],
+        items => [ map $self->normalize( $coll, $_ ), @items ],
         total => $mojodb->db->query( $total_query, @params )->hash->{total},
     };
 }

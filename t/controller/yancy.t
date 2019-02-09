@@ -339,6 +339,7 @@ subtest 'set' => sub {
             id => $items{blog}[0]{id},
             user_id => $items{user}[0]{id},
             %json_data,
+            user => $items{user}[0],
             is_published => 1, # booleans normalized to 0/1
           } );
 

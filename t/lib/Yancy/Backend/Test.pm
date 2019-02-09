@@ -80,7 +80,29 @@ sub _viewise {
     my $props = $schema->{properties}
         || $self->collections->{ $real_coll }{properties};
     delete $item->{$_} for grep !$props->{ $_ }, keys %$item;
-    $item;
+    $self->_join( $coll, $item );
+}
+
+sub _join {
+    my ( $self, $coll, $item ) = @_;
+    my $schema = $self->collections->{ $coll };
+    my $real_coll = ( $schema->{'x-view'} || {} )->{collection} // $coll;
+    my $props = $schema->{properties}
+        || $self->collections->{ $real_coll }{properties};
+    my @joins;
+    for ( grep exists($props->{ $_ }{'$ref'}), keys %$props ) {
+        (my $ref = $props->{ $_ }{'$ref'}) =~ s:^#/::;
+        my $fk = $_ . '_id';
+        next unless my $fid = $item->{ $fk };
+        my $fitem = $COLLECTIONS{ $ref }{ $fid };
+        if ( !$fitem ) {
+            # maybe need surrogate-key search
+            ( $fitem ) = grep $_->{id} eq $fid, values %{ $COLLECTIONS{ $ref } };
+        }
+        next if !$fitem;
+        push @joins, $_ => $fitem;
+    }
+    return { %$item, @joins };
 }
 
 sub _match_all {
@@ -162,7 +184,10 @@ sub list {
         $last = $#rows;
     }
     my $retval = {
-        items => [ map $self->_viewise( $coll, $_ ), @rows[ $first .. $last ] ],
+        items => [
+            map $self->_join( $coll, $self->_viewise( $coll, $_ ) ),
+                @rows[ $first .. $last ]
+        ],
         total => scalar @rows,
     };
     #; use Data::Dumper;

@@ -795,6 +795,7 @@ sub backend_common {
         slug => 't-2',
     );
     $blog_one{is_published} = $blog_two{is_published} = false;
+    $blog_one{user} = $blog_two{user} = \%user_one;
     my %blog_three = (
         title => 'T 3',
         user_id => $user_two{id},
@@ -808,7 +809,7 @@ sub backend_common {
         [ \%blog_one, \%blog_two ], # List (already in backend)
         'string',
         \%blog_three, # Create/Delete test
-        { is_published => false }, # create overlay
+        { is_published => false, user => \%user_two }, # create overlay
         { is_published => 1 }, # Set test
         );
     eval { $backend->set( 'user', $user_two{username}, { comments => [] } ) };

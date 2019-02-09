@@ -51,6 +51,7 @@ L<Yancy::Backend>
 
 use Mojo::Base '-role';
 use Mojo::Promise;
+use Yancy::Util qw( queryspec_from_schema );
 
 requires qw( mojodb );
 
@@ -69,20 +70,30 @@ sub get_p {
     my $props = $schema->{properties}
         || $self->collections->{ $real_coll }{properties};
     my $db = $self->mojodb->db;
-    return $db->select_p(
-        $real_coll,
-        [ grep !$props->{ $_ }{'$ref'}, keys %$props ],
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
+    my $prefetch = $self->prefetch;
+    my ( $extractspec ) = $prefetch->extractspec_from_queryspec( $queryspec );
+    my ( $sql, @bind ) = $prefetch->select_from_queryspec(
+        $queryspec,
         { $id_field => $id },
-    )->then( sub { $self->normalize( $coll, shift->hash ) } );
+    );
+    return $db->query_p( $sql, @bind )->then( sub {
+        return unless my ( $ret ) = $prefetch->extract_from_query( $extractspec, $_[0]->sth );
+        $self->normalize( $coll, $ret )
+    } );
 }
 
 sub list_p {
     my ( $self, $coll, $params, $opt ) = @_;
     $params ||= {}; $opt ||= {};
     my $mojodb = $self->mojodb;
-    my ( $query, $total_query, @params ) = $self->list_sqls( $coll, $params, $opt );
+    my $queryspec = queryspec_from_schema( $self->collections, $coll );
+    my $prefetch = $self->prefetch;
+    my ( $extractspec ) = $prefetch->extractspec_from_queryspec( $queryspec );
+    my ( $query, $total_query, @params ) = $self->list_sqls( $coll, $params, $opt, $queryspec );
     my $items_p = $mojodb->db->query_p( $query, @params )->then( sub {
-        [ map $self->normalize( $coll, $_ ), @{ shift->hashes } ]
+        my @items = $prefetch->extract_from_query( $extractspec, $_[0]->sth );
+        [ map $self->normalize( $coll, $_ ), @items ]
     } );
     my $total_p = $mojodb->db->query_p( $total_query, @params )
         ->then( sub { shift->hash->{total} } );
