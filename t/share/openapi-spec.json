@@ -75,6 +75,57 @@
          ],
          "type" : "object"
       },
+      "blognolink" : {
+         "properties" : {
+            "html" : {
+               "type" : [
+                  "string",
+                  "null"
+               ],
+               "x-order" : 6
+            },
+            "id" : {
+               "readOnly" : true,
+               "type" : "integer",
+               "x-order" : 1
+            },
+            "is_published" : {
+               "default" : false,
+               "type" : "boolean",
+               "x-order" : 7
+            },
+            "markdown" : {
+               "type" : "string",
+               "x-order" : 5
+            },
+            "slug" : {
+               "type" : [
+                  "string",
+                  "null"
+               ],
+               "x-order" : 4
+            },
+            "title" : {
+               "type" : "string",
+               "x-order" : 3
+            },
+            "user_id" : {
+               "type" : [
+                  "integer",
+                  "null"
+               ],
+               "x-order" : 2
+            }
+         },
+         "required" : [
+            "title",
+            "markdown"
+         ],
+         "type" : "object",
+         "x-view" : {
+            "collection" : "blog"
+         }
+      },
       "people" : {
          "properties" : {
             "age" : {
@@ -424,6 +475,123 @@
                }
             }
          }
+      },
+      "/blognolink" : {
+         "get" : {
+            "parameters" : [
+               {
+                  "$ref" : "#/parameters/%24limit"
+               },
+               {
+                  "$ref" : "#/parameters/%24offset"
+               },
+               {
+                  "$ref" : "#/parameters/%24order_by"
+               },
+               {
+                  "description" : "Filter the list by the html field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "html",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the is_published field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "is_published",
+                  "type" : "boolean"
+               },
+               {
+                  "description" : "Filter the list by the markdown field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "markdown",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the slug field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "slug",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the title field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "title",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the user_id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "user_id",
+                  "type" : "integer"
+               }
+            ],
+            "responses" : {
+               "200" : {
+                  "description" : "List of items",
+                  "schema" : {
+                     "properties" : {
+                        "items" : {
+                           "description" : "This page of items",
+                           "items" : {
+                              "$ref" : "#/definitions/blognolink"
+                           },
+                           "type" : "array"
+                        },
+                        "total" : {
+                           "description" : "The total number of items available",
+                           "type" : "integer"
+                        }
+                     },
+                     "required" : [
+                        "items",
+                        "total"
+                     ],
+                     "type" : "object"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         }
+      },
+      "/blognolink/{id}" : {
+         "get" : {
+            "description" : "Fetch a single item",
+            "responses" : {
+               "200" : {
+                  "description" : "Item details",
+                  "schema" : {
+                     "$ref" : "#/definitions/blognolink"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "parameters" : [
+            {
+               "description" : "The id of the item",
+               "in" : "path",
+               "name" : "id",
+               "required" : true,
+               "type" : "string",
+               "x-mojo-placeholder" : "*"
+            }
+         ]
       },
       "/people" : {
          "get" : {

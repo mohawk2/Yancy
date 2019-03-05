@@ -123,6 +123,43 @@ END {
             },
         },
     },
+    blognolink => {
+        'x-view' => { collection => 'blog' },
+        type => 'object',
+        required => [qw( title markdown )],
+        properties => {
+            id => {
+              'x-order' => 1,
+              readOnly => true,
+              type => 'integer',
+            },
+            user_id => {
+              'x-order' => 2,
+              type => [ 'integer', 'null' ],
+            },
+            title => {
+              'x-order' => 3,
+              type => 'string',
+            },
+            slug => {
+              'x-order' => 4,
+              type => [ 'string', 'null' ],
+            },
+            markdown => {
+              'x-order' => 5,
+              type => 'string',
+            },
+            html => {
+              type => [ 'string', 'null' ],
+              'x-order' => 6,
+            },
+            is_published => {
+              type => 'boolean',
+              'x-order' => 7,
+              default => false,
+            },
+        },
+    },
     mojo_migrations => {
         type => 'object',
         required => [qw( name version )],
@@ -637,6 +674,20 @@ sub test_backend {
                     html => { type => [ 'string', 'null' ], 'x-order' => 6 },
                     is_published => { type => 'boolean', 'x-order' => 7, default => false },
                     user => { '$ref' => '#/user' },
+                },
+            },
+            blognolink => {
+                'x-view' => { collection => 'blog' },
+                type => 'object',
+                required => [qw( title markdown )],
+                properties => {
+                    id => { type => 'integer', 'x-order' => 1, readOnly => true },
+                    user_id => { type => [ 'integer', 'null' ], 'x-order' => 2 },
+                    title => { type => 'string', 'x-order' => 3 },
+                    slug => { type => [ 'string', 'null' ], 'x-order' => 4 },
+                    markdown => { type => 'string', 'x-order' => 5 },
+                    html => { type => [ 'string', 'null' ], 'x-order' => 6 },
+                    is_published => { type => 'boolean', 'x-order' => 7, default => false },
                 },
             },
             mojo_migrations => {

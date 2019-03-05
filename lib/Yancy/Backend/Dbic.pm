@@ -54,6 +54,9 @@ schema for that collection.
 A very useful possibility is for that JSON schema to just contain
 C<<{ 'x-ignore' => 1 }>>.
 
+Will create pseudo-collections like
+L<Yancy::Backend::Role::Relational/read_schema>.
+
 =head2 Backend URL
 
 The URL for this backend takes the form C<< dbic://<schema_class>/<dbi_dsn> >>
@@ -334,6 +337,18 @@ sub read_schema {
         }
         elsif ( !$pk && @unique_columns == 1 && $unique_columns[0] ne 'id' ) {
             $schema{ $table }{ 'x-pk-field' } = $unique_columns[0];
+        }
+    }
+    for my $table ( $self->dbic->sources ) {
+        my $source = $self->dbic->source( $table );
+        if (
+            grep $source->relationship_info( $_ )->{attrs}{accessor} eq 'single',
+                $source->relationships
+        ) {
+            my $nolink = $table . 'nolink';
+            %{ $schema{ $nolink } } = %{ $schema{ $table } };
+            $schema{ $nolink }{'x-view'} = { collection => $table };
+            $schema{ $nolink }{properties} = { %{ $schema{ $nolink }{properties} } };
         }
     }
     for my $table ( $self->dbic->sources ) {

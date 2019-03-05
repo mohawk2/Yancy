@@ -119,6 +119,22 @@ Understands foreign key relationships, and uses them to include properties
 that are C<$ref> links to other collections. A heuristic is used to name
 the property based on the foreign-key column name.
 
+For any collections with such foreign-key relationships, additional
+pseudo-collections will be generated. They will:
+
+=over
+
+=item not have the link properties
+
+=item be named the same as the real collection with C<nolink> appended
+
+=item have L<Yancy::Help::Config/x-view> of the real collection
+
+=back
+
+These may be useful for defining useful data relations that avoid either
+cyclic links, or unwanted over-retrieval of information.
+
 =head1 SEE ALSO
 
 L<Yancy::Backend>
@@ -403,6 +419,14 @@ sub read_schema {
         if ( $IGNORE_TABLE{ $table } ) {
             $schema{ $table }{ 'x-ignore' } = 1;
         }
+    }
+    for my $table ( @all_tables ) {
+        my $fkall = $self->prefetch->dbspec->{ $table };
+        next if !grep $fkall->{$_}{type} eq 'single', keys %$fkall;
+        my $nolink = $table . 'nolink';
+        %{ $schema{ $nolink } } = %{ $schema{ $table } };
+        $schema{ $nolink }{'x-view'} = { collection => $table };
+        $schema{ $nolink }{properties} = { %{ $schema{ $nolink }{properties} } };
     }
     for my $table ( @all_tables ) {
         my $fkall = $self->prefetch->dbspec->{ $table };
