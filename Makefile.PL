@@ -46,6 +46,7 @@ my %WriteMakefileArgs = (
     "File::Spec" => 0,
     "IO::Handle" => 0,
     "IPC::Open3" => 0,
+    "Lingua::EN::Inflect::Number" => "0",
     "Test::More" => "1.001005"
   },
   "VERSION" => "1.025",
