@@ -126,6 +126,83 @@
             "collection" : "blog"
          }
       },
+      "comment" : {
+         "properties" : {
+            "blog" : {
+               "$ref" : "#/definitions/blog"
+            },
+            "blog_id" : {
+               "type" : "integer",
+               "x-order" : 3
+            },
+            "html" : {
+               "type" : [
+                  "string",
+                  "null"
+               ],
+               "x-order" : 5
+            },
+            "id" : {
+               "readOnly" : true,
+               "type" : "integer",
+               "x-order" : 1
+            },
+            "markdown" : {
+               "type" : "string",
+               "x-order" : 4
+            },
+            "user" : {
+               "$ref" : "#/definitions/user"
+            },
+            "user_id" : {
+               "type" : "integer",
+               "x-order" : 2
+            }
+         },
+         "required" : [
+            "user_id",
+            "blog_id",
+            "markdown"
+         ],
+         "type" : "object"
+      },
+      "commentnolink" : {
+         "properties" : {
+            "blog_id" : {
+               "type" : "integer",
+               "x-order" : 3
+            },
+            "html" : {
+               "type" : [
+                  "string",
+                  "null"
+               ],
+               "x-order" : 5
+            },
+            "id" : {
+               "readOnly" : true,
+               "type" : "integer",
+               "x-order" : 1
+            },
+            "markdown" : {
+               "type" : "string",
+               "x-order" : 4
+            },
+            "user_id" : {
+               "type" : "integer",
+               "x-order" : 2
+            }
+         },
+         "required" : [
+            "user_id",
+            "blog_id",
+            "markdown"
+         ],
+         "type" : "object",
+         "x-view" : {
+            "collection" : "comment"
+         }
+      },
       "people" : {
          "properties" : {
             "age" : {
@@ -572,6 +649,283 @@
                   "description" : "Item details",
                   "schema" : {
                      "$ref" : "#/definitions/blognolink"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "parameters" : [
+            {
+               "description" : "The id of the item",
+               "in" : "path",
+               "name" : "id",
+               "required" : true,
+               "type" : "string",
+               "x-mojo-placeholder" : "*"
+            }
+         ]
+      },
+      "/comment" : {
+         "get" : {
+            "parameters" : [
+               {
+                  "$ref" : "#/parameters/%24limit"
+               },
+               {
+                  "$ref" : "#/parameters/%24offset"
+               },
+               {
+                  "$ref" : "#/parameters/%24order_by"
+               },
+               {
+                  "description" : "Filter the list by the blog_id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "blog_id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the html field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "html",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the markdown field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "markdown",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the user_id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "user_id",
+                  "type" : "integer"
+               }
+            ],
+            "responses" : {
+               "200" : {
+                  "description" : "List of items",
+                  "schema" : {
+                     "properties" : {
+                        "items" : {
+                           "description" : "This page of items",
+                           "items" : {
+                              "$ref" : "#/definitions/comment"
+                           },
+                           "type" : "array"
+                        },
+                        "total" : {
+                           "description" : "The total number of items available",
+                           "type" : "integer"
+                        }
+                     },
+                     "required" : [
+                        "items",
+                        "total"
+                     ],
+                     "type" : "object"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "post" : {
+            "parameters" : [
+               {
+                  "in" : "body",
+                  "name" : "newItem",
+                  "required" : true,
+                  "schema" : {
+                     "$ref" : "#/definitions/comment"
+                  }
+               }
+            ],
+            "responses" : {
+               "201" : {
+                  "description" : "Entry was created",
+                  "schema" : {
+                     "$ref" : "#/definitions/comment/properties/id"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         }
+      },
+      "/comment/{id}" : {
+         "delete" : {
+            "description" : "Delete a single item",
+            "responses" : {
+               "204" : {
+                  "description" : "Item was deleted"
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "get" : {
+            "description" : "Fetch a single item",
+            "responses" : {
+               "200" : {
+                  "description" : "Item details",
+                  "schema" : {
+                     "$ref" : "#/definitions/comment"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "parameters" : [
+            {
+               "description" : "The id of the item",
+               "in" : "path",
+               "name" : "id",
+               "required" : true,
+               "type" : "string",
+               "x-mojo-placeholder" : "*"
+            }
+         ],
+         "put" : {
+            "description" : "Update a single item",
+            "parameters" : [
+               {
+                  "in" : "body",
+                  "name" : "newItem",
+                  "required" : true,
+                  "schema" : {
+                     "$ref" : "#/definitions/comment"
+                  }
+               }
+            ],
+            "responses" : {
+               "200" : {
+                  "description" : "Item was updated",
+                  "schema" : {
+                     "$ref" : "#/definitions/comment"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         }
+      },
+      "/commentnolink" : {
+         "get" : {
+            "parameters" : [
+               {
+                  "$ref" : "#/parameters/%24limit"
+               },
+               {
+                  "$ref" : "#/parameters/%24offset"
+               },
+               {
+                  "$ref" : "#/parameters/%24order_by"
+               },
+               {
+                  "description" : "Filter the list by the blog_id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "blog_id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the html field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "html",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the markdown field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "markdown",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the user_id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "user_id",
+                  "type" : "integer"
+               }
+            ],
+            "responses" : {
+               "200" : {
+                  "description" : "List of items",
+                  "schema" : {
+                     "properties" : {
+                        "items" : {
+                           "description" : "This page of items",
+                           "items" : {
+                              "$ref" : "#/definitions/commentnolink"
+                           },
+                           "type" : "array"
+                        },
+                        "total" : {
+                           "description" : "The total number of items available",
+                           "type" : "integer"
+                        }
+                     },
+                     "required" : [
+                        "items",
+                        "total"
+                     ],
+                     "type" : "object"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         }
+      },
+      "/commentnolink/{id}" : {
+         "get" : {
+            "description" : "Fetch a single item",
+            "responses" : {
+               "200" : {
+                  "description" : "Item details",
+                  "schema" : {
+                     "$ref" : "#/definitions/commentnolink"
                   }
                },
                "default" : {

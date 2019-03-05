@@ -30,3 +30,12 @@ CREATE TABLE IF NOT EXISTS mojo_migrations (
     name TEXT UNIQUE NOT NULL,
     version BIGINT NOT NULL CHECK (version >= 0)
 );
+CREATE TABLE "comment" (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    blog_id INTEGER NOT NULL,
+    markdown TEXT NOT NULL,
+    html TEXT,
+    FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE,
+    FOREIGN KEY (blog_id) REFERENCES "blog" (id) ON DELETE CASCADE
+);

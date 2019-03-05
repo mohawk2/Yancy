@@ -160,6 +160,31 @@ END {
             },
         },
     },
+    comment => {
+        properties => {
+            id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+            user_id => { type => 'integer', 'x-order' => 2 },
+            blog_id => { type => 'integer', 'x-order' => 3 },
+            markdown => { type => 'string', 'x-order' => 4 },
+            html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+            blog => { '$ref' => '#/blog' },
+            user => { '$ref' => '#/user' },
+        },
+        required => [ 'user_id', 'blog_id', 'markdown' ],
+        type => 'object',
+    },
+    commentnolink => {
+        'x-view' => { collection => 'comment' },
+        properties => {
+            id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+            user_id => { type => 'integer', 'x-order' => 2 },
+            blog_id => { type => 'integer', 'x-order' => 3 },
+            markdown => { type => 'string', 'x-order' => 4 },
+            html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+        },
+        required => [ 'user_id', 'blog_id', 'markdown' ],
+        type => 'object',
+    },
     mojo_migrations => {
         type => 'object',
         required => [qw( name version )],
@@ -700,6 +725,31 @@ sub test_backend {
                     name => { type => 'string', 'x-order' => 1 },
                     version => { type => 'integer', 'x-order' => 2 },
                 },
+            },
+            comment => {
+                properties => {
+                    id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+                    user_id => { type => 'integer', 'x-order' => 2 },
+                    blog_id => { type => 'integer', 'x-order' => 3 },
+                    markdown => { type => 'string', 'x-order' => 4 },
+                    html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+                    blog => { '$ref' => '#/blog' },
+                    user => { '$ref' => '#/user' },
+                },
+                required => [ 'user_id', 'blog_id', 'markdown' ],
+                type => 'object',
+            },
+            commentnolink => {
+                'x-view' => { collection => 'comment' },
+                properties => {
+                    id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+                    user_id => { type => 'integer', 'x-order' => 2 },
+                    blog_id => { type => 'integer', 'x-order' => 3 },
+                    markdown => { type => 'string', 'x-order' => 4 },
+                    html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+                },
+                required => [ 'user_id', 'blog_id', 'markdown' ],
+                type => 'object',
             },
         };
 

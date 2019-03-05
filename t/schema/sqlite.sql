@@ -29,3 +29,12 @@ CREATE TABLE mojo_migrations (
     name VARCHAR(255) UNIQUE NOT NULL,
     version INTEGER NOT NULL
 );
+CREATE TABLE "comment" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    blog_id INTEGER NOT NULL,
+    markdown VARCHAR(255) NOT NULL,
+    html VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE,
+    FOREIGN KEY (blog_id) REFERENCES blog (id) ON DELETE CASCADE
+);

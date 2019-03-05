@@ -388,7 +388,7 @@ subtest 'schema' => sub {
         });
         my $collection_keys = [ sort keys %{ $t->app->yancy->schema } ];
         is_deeply $collection_keys,
-            [qw{ blog blognolink mojo_migrations people user }],
+            [qw{ blog blognolink comment commentnolink mojo_migrations people user }],
             'schema() gets correct collections from read_schema'
             or diag explain $collection_keys;
     };
