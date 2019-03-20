@@ -129,7 +129,7 @@
       "comment" : {
          "properties" : {
             "blog" : {
-               "$ref" : "#/definitions/blog"
+               "$ref" : "#/definitions/blognolink"
             },
             "blog_id" : {
                "type" : "integer",

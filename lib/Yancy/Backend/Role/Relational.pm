@@ -434,6 +434,8 @@ sub read_schema {
             my $fkinfo = $fkall->{ $fromlabel };
             next if $fkinfo->{type} ne 'single';
             my $to = $fkinfo->{totable};
+            my $to_nolink = $to . 'nolink';
+            $to = $to_nolink if exists $schema{ $to_nolink };
             $schema{ $table }{properties}{ $fromlabel } = { '$ref' => "#/$to" };
         }
     }

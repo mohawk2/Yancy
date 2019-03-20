@@ -357,6 +357,8 @@ sub read_schema {
             my $r = $source->relationship_info( $relation );
             my $to = $r->{class};
             $to =~ s#.*:##; # get the last part of classname
+            my $to_nolink = $to . 'nolink';
+            $to = $to_nolink if exists $schema{ $to_nolink };
             if ( $r->{attrs}{accessor} eq 'single' ) {
                 $schema{ $table }{properties}{ $relation } = { '$ref' => "#/$to" };
             }
