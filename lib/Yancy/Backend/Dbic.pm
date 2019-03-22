@@ -185,9 +185,12 @@ sub create {
 sub _generate_prefetch {
     my ( $self, $spec ) = @_;
     my $single = $spec->{single} || {};
+    my $multi = $spec->{multi} || {};
     +{
         (map { $_ => $self->_generate_prefetch( $single->{ $_ } ) }
             sort keys %$single),
+        (map { $_ => $self->_generate_prefetch( $multi->{ $_ } ) }
+            sort keys %$multi),
     };
 }
 
@@ -341,10 +344,7 @@ sub read_schema {
     }
     for my $table ( $self->dbic->sources ) {
         my $source = $self->dbic->source( $table );
-        if (
-            grep $source->relationship_info( $_ )->{attrs}{accessor} eq 'single',
-                $source->relationships
-        ) {
+        if ( $source->relationships ) {
             my $nolink = $table . 'nolink';
             %{ $schema{ $nolink } } = %{ $schema{ $table } };
             $schema{ $nolink }{'x-view'} = { collection => $table };
@@ -361,6 +361,11 @@ sub read_schema {
             $to = $to_nolink if exists $schema{ $to_nolink };
             if ( $r->{attrs}{accessor} eq 'single' ) {
                 $schema{ $table }{properties}{ $relation } = { '$ref' => "#/$to" };
+            } elsif ( $r->{attrs}{accessor} eq 'multi' ) {
+                $schema{ $table }{properties}{ $relation } = {
+                    type => 'array',
+                    items => { '$ref' => "#/$to" },
+                };
             }
         }
     }

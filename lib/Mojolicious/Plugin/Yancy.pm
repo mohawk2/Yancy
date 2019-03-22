@@ -747,6 +747,9 @@ sub _jsonschema_to_openapi {
             $ref =~ s:^#:#/definitions:;
             $p->{'$ref'} = $ref;
             return $p;
+        } elsif ( $p->{type} eq 'array' and $ref = $p->{items}{'$ref'} ) {
+            $ref =~ s:^#:#/definitions:;
+            $p->{items}{'$ref'} = $ref;
         }
         # the JSON schema for OpenAPI 2 allows array, so we will here too
 #        if ( ref $p->{type} eq 'ARRAY' ) {
@@ -768,6 +771,9 @@ sub _openapi_to_jsonschema {
             $ref =~ s:^#/definitions:#:;
             $p->{'$ref'} = $ref;
             return $p;
+        } elsif ( $p->{type} eq 'array' and $ref = $p->{items}{'$ref'} ) {
+            $ref =~ s:^#/definitions:#:;
+            $p->{items}{'$ref'} = $ref;
         }
         $p;
     } );
@@ -959,7 +965,9 @@ sub _openapi_spec_from_schema {
                         type => ref $props{ $_ }{type} eq 'ARRAY'
                                 ? $props{ $_ }{type}[0] : $props{ $_ }{type},
                         description => "Filter the list by the $_ field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
-                    } } grep !exists( $props{ $_ }{'$ref'} ), sort keys %props,
+                    } } grep !exists( $props{ $_ }{'$ref'} ) &&
+                        !($props{ $_ }{type} eq 'array' && exists $props{ $_ }{items}{'$ref'}),
+                        sort keys %props,
                 ],
                 responses => {
                     200 => {

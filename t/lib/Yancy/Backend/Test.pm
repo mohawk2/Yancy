@@ -9,6 +9,7 @@ use Storable qw( dclone );
 use Role::Tiny qw( with );
 use Carp qw( croak );
 use Yancy::Util qw( copy_inline_refs );
+use Lingua::EN::Inflect::Number qw( to_S );
 with 'Yancy::Backend::Role::Sync';
 
 our %COLLECTIONS;
@@ -92,6 +93,8 @@ sub _join {
     my @joins;
     for ( grep exists($props->{ $_ }{'$ref'}), keys %$props ) {
         (my $ref = $props->{ $_ }{'$ref'}) =~ s:^#/::;
+        $ref = $self->collections->{ $ref }{'x-view'}{collection}
+            if $self->collections->{ $ref }{'x-view'};
         my $fk = $_ . '_id';
         next unless my $fid = $item->{ $fk };
         my $fitem = $COLLECTIONS{ $ref }{ $fid };
@@ -101,6 +104,13 @@ sub _join {
         }
         next if !$fitem;
         push @joins, $_ => $fitem;
+    }
+    for (
+        grep 'array' eq ($props->{ $_ }{type}//'') && exists($props->{ $_ }{items}{'$ref'}), keys %$props
+    ) {
+        my $from_collection = to_S $_;
+        my $list = $self->list( $from_collection, { $real_coll.'_id' => $item->{id} } );
+        push @joins, $_ => $list->{items};
     }
     return { %$item, @joins };
 }

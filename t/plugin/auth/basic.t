@@ -212,7 +212,7 @@ subtest 'logged-in user can admin' => sub {
             password => 'qwe123',
         };
         my %doug_noid = %$doug;
-        delete $doug_noid{id};
+        delete @doug_noid{qw( id blogs comments )};
         $t->put_ok( '/yancy/api/user/' . $items{user}[0]{username}, json => \%doug_noid )
           ->status_is( 200 );
         is $backend->get( user => $items{user}[0]{username} )->{password},

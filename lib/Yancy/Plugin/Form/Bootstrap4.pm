@@ -201,6 +201,7 @@ sub form_for {
         = sort {
             ( $props->{$a}{'x-order'}//2**31 ) <=> ( $props->{$b}{'x-order'}//2**31 )
         }
+        grep $props->{ $_ }{type} ne 'array',
         keys %$props;
     my @fields;
     for my $field ( @sorted_props ) {

@@ -88,6 +88,12 @@ END {
         type => 'object',
         required => [qw( title markdown )],
         properties => {
+            comments => {
+              items => {
+                '$ref' => '#/commentnolink'
+              },
+              type => 'array',
+            },
             id => {
               'x-order' => 1,
               readOnly => true,
@@ -119,7 +125,7 @@ END {
               default => false,
             },
             user => {
-              '$ref' => '#/user',
+              '$ref' => '#/usernolink',
             },
         },
     },
@@ -168,7 +174,7 @@ END {
             markdown => { type => 'string', 'x-order' => 4 },
             html => { type => [ 'string', 'null' ], 'x-order' => 5 },
             blog => { '$ref' => '#/blognolink' },
-            user => { '$ref' => '#/user' },
+            user => { '$ref' => '#/usernolink' },
         },
         required => [ 'user_id', 'blog_id', 'markdown' ],
         type => 'object',
@@ -235,6 +241,59 @@ END {
     },
     user => {
         type => 'object',
+        required => [qw( username email password )],
+        'x-id-field' => 'username',
+        'x-list-columns' => [qw( username email )],
+        properties => {
+            blogs => {
+                items => {
+                  '$ref' => '#/blognolink'
+                },
+                type => 'array',
+            },
+            comments => {
+                items => {
+                  '$ref' => '#/commentnolink'
+                },
+                type => 'array',
+            },
+            id => {
+                'x-order' => 1,
+                readOnly => true,
+                type => 'integer',
+            },
+            username => {
+                'x-order' => 2,
+                type => 'string',
+            },
+            email => {
+                'x-order' => 3,
+                type => 'string',
+                title => 'E-mail Address',
+                format => 'email',
+                pattern => '^[^@]+@[^@]+$',
+            },
+            password => {
+                'x-order' => 4,
+                type => 'string',
+                format => 'password',
+            },
+            access => {
+                'x-order' => 5,
+                type => 'string',
+                enum => [qw( user moderator admin )],
+                default => 'user',
+            },
+            age => {
+                'x-order' => 6,
+                type => [qw( integer null )],
+                description => 'The person\'s age',
+            },
+        },
+    },
+    usernolink => {
+        type => 'object',
+        'x-view' => { collection => 'user' },
         required => [qw( username email password )],
         'x-id-field' => 'username',
         'x-list-columns' => [qw( username email )],
@@ -671,6 +730,30 @@ sub test_backend {
                 'x-id-field' => 'username',
                 required => [qw( username email password )],
                 properties => {
+                    blogs => { items => { '$ref' => '#/blognolink' }, type => 'array' },
+                    comments => { items => { '$ref' => '#/commentnolink' }, type => 'array' },
+                    id => { type => 'integer', 'x-order' => 1, readOnly => true },
+                    username => { type => 'string', 'x-order' => 2 },
+                    email => { type => 'string', 'x-order' => 3 },
+                    password => { type => 'string', 'x-order' => 4 },
+                    access => {
+                        type => 'string',
+                        enum => [qw( user moderator admin )],
+                        'x-order' => 5,
+                        default => 'user',
+                    },
+                    age => {
+                        type => [ 'integer', 'null' ],
+                        'x-order' => 6,
+                    },
+                },
+            },
+            usernolink => {
+                type => 'object',
+                'x-view' => { collection => 'user' },
+                'x-id-field' => 'username',
+                required => [qw( username email password )],
+                properties => {
                     id => { type => 'integer', 'x-order' => 1, readOnly => true },
                     username => { type => 'string', 'x-order' => 2 },
                     email => { type => 'string', 'x-order' => 3 },
@@ -691,6 +774,7 @@ sub test_backend {
                 type => 'object',
                 required => [qw( title markdown )],
                 properties => {
+                    comments => { items => { '$ref' => '#/commentnolink' }, type => 'array' },
                     id => { type => 'integer', 'x-order' => 1, readOnly => true },
                     user_id => { type => [ 'integer', 'null' ], 'x-order' => 2 },
                     title => { type => 'string', 'x-order' => 3 },
@@ -698,7 +782,7 @@ sub test_backend {
                     markdown => { type => 'string', 'x-order' => 5 },
                     html => { type => [ 'string', 'null' ], 'x-order' => 6 },
                     is_published => { type => 'boolean', 'x-order' => 7, default => false },
-                    user => { '$ref' => '#/user' },
+                    user => { '$ref' => '#/usernolink' },
                 },
             },
             blognolink => {
@@ -734,7 +818,7 @@ sub test_backend {
                     markdown => { type => 'string', 'x-order' => 4 },
                     html => { type => [ 'string', 'null' ], 'x-order' => 5 },
                     blog => { '$ref' => '#/blognolink' },
-                    user => { '$ref' => '#/user' },
+                    user => { '$ref' => '#/usernolink' },
                 },
                 required => [ 'user_id', 'blog_id', 'markdown' ],
                 type => 'object',
@@ -835,6 +919,8 @@ sub backend_common {
         password => 'p2',
         age => 7,
     );
+    $user_one{blogs} = $user_two{blogs} = [];
+    $user_one{comments} = $user_two{comments} = [];
     my %user_three = (
         username => 'three',
         email => 'three@example.com',
@@ -848,8 +934,9 @@ sub backend_common {
         [ \%user_one, \%user_two ], # List (already in backend)
         'string',
         \%user_three, # Create/Delete test
-        {}, # create overlay
+        { blogs => [], comments => [] }, # create overlay
         { email => 'test@example.com' }, # Set test
+        0, # run the "validate schema" bit on just this collection - will fail as $ref not there
         );
     Test::More::subtest( 'number list' => \&test_backend, $backend,
         user => $collections->{ user }, # Collection
@@ -857,9 +944,11 @@ sub backend_common {
         [ \%user_one, \%user_two ], # List (already in backend)
         'integer',
         \%user_three, # Create/Delete test
-        {}, # create overlay
+        { blogs => [], comments => [] }, # create overlay
         { email => 'test@example.com' }, # Set test
         );
+    delete $_->{blogs} for \%user_one, \%user_two; # as they're used later
+    delete $_->{comments} for \%user_one, \%user_two;
     my $got = $backend->get( 'usermini', 'one' );
     Test::More::is_deeply(
         $got,
@@ -878,7 +967,7 @@ sub backend_common {
     $got = $backend->get( 'userviewnoprops', 'one' );
     Test::More::is_deeply(
         $got,
-        \%user_one,
+        { %user_one, blogs => [], comments => [] },
         'get viewnoprops',
     ) or Test::More::diag( Test::More::explain( $got ) );
     my %blog_one = $insert_item->( 'blog',
@@ -896,6 +985,7 @@ sub backend_common {
         slug => 't-2',
     );
     $blog_one{is_published} = $blog_two{is_published} = false;
+    $blog_one{comments} = $blog_two{comments} = [];
     $blog_one{user} = $blog_two{user} = \%user_one;
     my %blog_three = (
         title => 'T 3',
@@ -910,7 +1000,7 @@ sub backend_common {
         [ \%blog_one, \%blog_two ], # List (already in backend)
         'string',
         \%blog_three, # Create/Delete test
-        { is_published => false, user => \%user_two }, # create overlay
+        { is_published => false, user => \%user_two, comments => [] }, # create overlay
         { is_published => 1 }, # Set test
         );
     eval { $backend->set( 'user', $user_two{username}, { comments => [] } ) };
@@ -919,6 +1009,32 @@ sub backend_common {
     Test::More::like $@, qr/No refs/, 'create blows up with array-ref data';
     eval { $backend->set( 'blog', $blog_two{id}, { is_published => false } ) };
     Test::More::is $@, '', 'set fine with JSON boolean';
+    my %comment_one = $insert_item->( 'comment',
+        blog_id => $blog_one{id},
+        user_id => $user_two{id},
+        markdown => '# So good',
+        html => '<h1>So good</h1>',
+    );
+    my %comment_two = $insert_item->( 'comment',
+        blog_id => $blog_two{id},
+        user_id => $user_one{id},
+        markdown => '# So great',
+        html => '<h1>So great</h1>',
+    );
+    my %comment_three = $insert_item->( 'comment',
+        blog_id => $blog_two{id},
+        user_id => $user_two{id},
+        markdown => '# So amazing',
+        html => '<h1>So amazing</h1>',
+    );
+    $blog_one{comments} = [ \%comment_one ];
+    $blog_two{comments} = [ \%comment_two, \%comment_three ];
+    $got = $backend->list( 'blog', undef, { limit => 1, offset => 1 } );
+    Test::More::is_deeply(
+        $got,
+        { total => 2, items => [ \%blog_two ] },
+        'get multi-entity',
+    ) or Test::More::diag( Test::More::explain( $got ) );
 }
 
 1;

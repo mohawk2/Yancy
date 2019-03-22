@@ -292,8 +292,12 @@ subtest 'create' => sub {
     my $blog_id = eval { $t->app->yancy->create( blog => { %{ $new_blog } }) };
     ok !$@, 'create() lives' or diag explain $@;
     $new_blog->{id} = $blog_id;
-    $new_blog->{user} = $items{user}[0];
-    is_deeply $backend->get( blog => $blog_id ), $new_blog;
+    my %thisuser = %{ $items{user}[0] };
+    delete @thisuser{ qw(blogs comments) };
+    $new_blog->{user} = \%thisuser;
+    $new_blog->{comments} = [];
+    my $got = $backend->get( blog => $blog_id );
+    is_deeply $got, $new_blog or diag explain $got;
 
     my $count = $backend->list( 'people' )->{total};
     subtest 'create dies with missing fields' => sub {
@@ -371,7 +375,86 @@ subtest 'schema' => sub {
     } );
 
     subtest 'get schema' => sub {
-        is_deeply $t->app->yancy->schema( 'user' ), $collections->{user},
+        is_deeply $t->app->yancy->schema( 'user' ), {
+            type => 'object',
+            required => [qw( username email password )],
+            'x-id-field' => 'username',
+            'x-list-columns' => [qw( username email )],
+            properties => {
+                id => {
+                    'x-order' => 1,
+                    readOnly => true,
+                    type => 'integer',
+                },
+                username => {
+                    'x-order' => 2,
+                    type => 'string',
+                },
+                email => {
+                    'x-order' => 3,
+                    type => 'string',
+                    title => 'E-mail Address',
+                    format => 'email',
+                    pattern => '^[^@]+@[^@]+$',
+                },
+                password => {
+                    'x-order' => 4,
+                    type => 'string',
+                    format => 'password',
+                },
+                access => {
+                    'x-order' => 5,
+                    type => 'string',
+                    enum => [qw( user moderator admin )],
+                    default => 'user',
+                },
+                age => {
+                    'x-order' => 6,
+                    type => [qw( integer null )],
+                    description => 'The person\'s age',
+                },
+                blogs => {
+                  items => {
+                    properties => {
+                      id => {
+                        'x-order' => 1,
+                        readOnly => true,
+                        type => 'integer',
+                      },
+                      html => { type => [ 'string', 'null' ], 'x-order' => 6 },
+                      is_published => {
+                        default => false,
+                        type => 'boolean',
+                        'x-order' => 7
+                      },
+                      markdown => { type => 'string', 'x-order' => 5 },
+                      slug => { type => [ 'string', 'null' ], 'x-order' => 4 },
+                      title => { type => 'string', 'x-order' => 3 },
+                      user_id => { type => [ 'integer', 'null' ], 'x-order' => 2 }
+                    },
+                    required => [ 'title', 'markdown' ],
+                    type => 'object',
+                    'x-view' => { collection => 'blog' },
+                  },
+                  type => 'array'
+                },
+                comments => {
+                  items => {
+                    properties => {
+                      blog_id => { type => 'integer', 'x-order' => 3 },
+                      html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+                      id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+                      markdown => { type => 'string', 'x-order' => 4 },
+                      user_id => { type => 'integer', 'x-order' => 2 }
+                    },
+                    required => [ 'user_id', 'blog_id', 'markdown' ],
+                    type => 'object',
+                    'x-view' => { collection => 'comment' },
+                  },
+                  type => 'array'
+                },
+            },
+        },
             'schema( $coll ) is correct'
             or diag explain $t->app->yancy->schema( 'user' );
     };
@@ -388,7 +471,7 @@ subtest 'schema' => sub {
         });
         my $collection_keys = [ sort keys %{ $t->app->yancy->schema } ];
         is_deeply $collection_keys,
-            [qw{ blog blognolink comment commentnolink mojo_migrations people user }],
+            [qw{ blog blognolink comment commentnolink mojo_migrations people user usernolink }],
             'schema() gets correct collections from read_schema'
             or diag explain $collection_keys;
     };

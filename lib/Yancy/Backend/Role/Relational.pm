@@ -422,7 +422,7 @@ sub read_schema {
     }
     for my $table ( @all_tables ) {
         my $fkall = $self->prefetch->dbspec->{ $table };
-        next if !grep $fkall->{$_}{type} eq 'single', keys %$fkall;
+        next if !keys %$fkall;
         my $nolink = $table . 'nolink';
         %{ $schema{ $nolink } } = %{ $schema{ $table } };
         $schema{ $nolink }{'x-view'} = { collection => $table };
@@ -432,11 +432,17 @@ sub read_schema {
         my $fkall = $self->prefetch->dbspec->{ $table };
         for my $fromlabel ( keys %$fkall ) {
             my $fkinfo = $fkall->{ $fromlabel };
-            next if $fkinfo->{type} ne 'single';
             my $to = $fkinfo->{totable};
             my $to_nolink = $to . 'nolink';
             $to = $to_nolink if exists $schema{ $to_nolink };
-            $schema{ $table }{properties}{ $fromlabel } = { '$ref' => "#/$to" };
+            if ( $fkinfo->{type} eq 'single' ) {
+                $schema{ $table }{properties}{ $fromlabel } = { '$ref' => "#/$to" };
+            } elsif ( $fkinfo->{type} eq 'multi' ) {
+                $schema{ $table }{properties}{ $fromlabel } = {
+                    type => 'array',
+                    items => { '$ref' => "#/$to" },
+                };
+            }
         }
     }
     my @ret = @table_names

@@ -14,7 +14,7 @@ use FindBin qw( $Bin );
 use Mojo::File qw( path );
 use lib "".path( $Bin, 'lib' );
 use Local::Test qw( init_backend );
-use Mojo::JSON qw( true );
+use Mojo::JSON qw( true false );
 
 BEGIN { $ENV{MOJO_HOME} = "".path( $Bin ); } # avoid local yancy.conf
 
@@ -106,6 +106,46 @@ subtest 'read_schema' => sub {
                         'x-order' => 6,
                         type => [qw( integer null )],
                         description => 'The person\'s age',
+                    },
+                    blogs => {
+                      items => {
+                        properties => {
+                          id => {
+                            'x-order' => 1,
+                            readOnly => true,
+                            type => 'integer',
+                          },
+                          html => { type => [ 'string', 'null' ], 'x-order' => 6 },
+                          is_published => {
+                            default => false,
+                            type => 'boolean',
+                            'x-order' => 7
+                          },
+                          markdown => { type => 'string', 'x-order' => 5 },
+                          slug => { type => [ 'string', 'null' ], 'x-order' => 4 },
+                          title => { type => 'string', 'x-order' => 3 },
+                          user_id => { type => [ 'integer', 'null' ], 'x-order' => 2 }
+                        },
+                        required => [ 'title', 'markdown' ],
+                        type => 'object',
+                        'x-view' => { collection => 'blog' },
+                      },
+                      type => 'array'
+                    },
+                    comments => {
+                      items => {
+                        properties => {
+                          blog_id => { type => 'integer', 'x-order' => 3 },
+                          html => { type => [ 'string', 'null' ], 'x-order' => 5 },
+                          id => { readOnly => true, type => 'integer', 'x-order' => 1 },
+                          markdown => { type => 'string', 'x-order' => 4 },
+                          user_id => { type => 'integer', 'x-order' => 2 }
+                        },
+                        required => [ 'user_id', 'blog_id', 'markdown' ],
+                        type => 'object',
+                        'x-view' => { collection => 'comment' },
+                      },
+                      type => 'array'
                     },
                 },
             },

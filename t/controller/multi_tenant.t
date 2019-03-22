@@ -325,14 +325,17 @@ subtest 'set' => sub {
             html => '<h1>First Post</h1>',
             is_published => "true",
         );
+        my %thisuser = %{ $items{user}[0] };
+        delete @thisuser{ qw(blogs comments) };
         $t->post_ok( "/leela/edit/$items{blog}[0]{id}" => { Accept => 'application/json' }, form => \%json_data )
           ->status_is( 200 )
           ->json_is( {
             id => $items{blog}[0]{id},
             user_id => $items{user}[0]{id},
             %json_data,
-            user => $items{user}[0],
+            user => \%thisuser,
             is_published => 1, # booleans normalized to 0/1
+            comments => [],
           } );
 
         my $saved_item = $backend->get( blog => $items{blog}[0]{id} );

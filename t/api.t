@@ -195,6 +195,15 @@ sub test_api {
                     type => [ 'integer', 'null' ],
                     description => 'The person\'s age',
                 },
+                comments => {
+                    items => { '$ref' => '#/definitions/commentnolink' },
+                    type => 'array',
+                },
+                blogs => {
+                    items => { '$ref' => '#/definitions/blognolink' },
+                    type => 'array',
+                },
+
             },
           } )
 
@@ -496,6 +505,8 @@ sub test_api {
                 password => 'ignore',
                 access => 'user',
                 age => 35,
+                blogs => [],
+                comments => [],
             },
           );
 
@@ -510,6 +521,8 @@ sub test_api {
                     password => 'ignore',
                     access => 'user',
                     age => 32,
+                    blogs => [],
+                    comments => [],
                 },
               );
         };
@@ -538,9 +551,14 @@ sub test_api {
         };
         $t->put_ok( $api_path . '/user/doug' => json => $new_user )
           ->status_is( 200 )->or( sub { diag shift->tx->res->body } );
-        $t->json_is( { %$new_user, id => $items{user}[0]{id} } );
-        is_deeply $backend->get( user => 'doug' ),
-            { %$new_user, id => $items{user}[0]{id} };
+        my $expected = {
+            %$new_user,
+            id => $items{user}[0]{id},
+            blogs => [],
+            comments => [],
+        };
+        $t->json_is( $expected );
+        is_deeply $backend->get( user => 'doug' ), $expected;
 
         subtest 'change id in set' => sub {
             my $new_user = {
@@ -552,9 +570,14 @@ sub test_api {
             };
             $t->put_ok( $api_path . '/user/doug' => json => $new_user )
               ->status_is( 200 );
-            $t->json_is( { %$new_user, id => $items{user}[0]{id} } );
-            is_deeply $backend->get( user => 'douglas' ),
-                { %$new_user, id => $items{user}[0]{id} };
+            my $expected = {
+                %$new_user,
+                id => $items{user}[0]{id},
+                blogs => [],
+                comments => [],
+            };
+            $t->json_is( $expected );
+            is_deeply $backend->get( user => 'douglas' ), $expected;
             ok !$backend->get( user => 'doug' ), 'old id does not exist';
         };
 

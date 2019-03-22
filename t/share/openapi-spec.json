@@ -26,6 +26,12 @@
       },
       "blog" : {
          "properties" : {
+            "comments" : {
+               "items" : {
+                  "$ref" : "#/definitions/commentnolink"
+               },
+               "type" : "array"
+            },
             "html" : {
                "type" : [
                   "string",
@@ -59,7 +65,7 @@
                "x-order" : 3
             },
             "user" : {
-               "$ref" : "#/definitions/user"
+               "$ref" : "#/definitions/usernolink"
             },
             "user_id" : {
                "type" : [
@@ -152,7 +158,7 @@
                "x-order" : 4
             },
             "user" : {
-               "$ref" : "#/definitions/user"
+               "$ref" : "#/definitions/usernolink"
             },
             "user_id" : {
                "type" : "integer",
@@ -268,6 +274,18 @@
                ],
                "x-order" : 6
             },
+            "blogs" : {
+               "items" : {
+                  "$ref" : "#/definitions/blognolink"
+               },
+               "type" : "array"
+            },
+            "comments" : {
+               "items" : {
+                  "$ref" : "#/definitions/commentnolink"
+               },
+               "type" : "array"
+            },
             "email" : {
                "format" : "email",
                "pattern" : "^[^@]+@[^@]+$",
@@ -321,6 +339,63 @@
                "x-order" : 2
             }
          },
+         "type" : "object",
+         "x-id-field" : "username",
+         "x-list-columns" : [
+            "username",
+            "email"
+         ],
+         "x-view" : {
+            "collection" : "user"
+         }
+      },
+      "usernolink" : {
+         "properties" : {
+            "access" : {
+               "default" : "user",
+               "enum" : [
+                  "user",
+                  "moderator",
+                  "admin"
+               ],
+               "type" : "string",
+               "x-order" : 5
+            },
+            "age" : {
+               "description" : "The person's age",
+               "type" : [
+                  "integer",
+                  "null"
+               ],
+               "x-order" : 6
+            },
+            "email" : {
+               "format" : "email",
+               "pattern" : "^[^@]+@[^@]+$",
+               "title" : "E-mail Address",
+               "type" : "string",
+               "x-order" : 3
+            },
+            "id" : {
+               "readOnly" : true,
+               "type" : "integer",
+               "x-order" : 1
+            },
+            "password" : {
+               "format" : "password",
+               "type" : "string",
+               "x-order" : 4
+            },
+            "username" : {
+               "type" : "string",
+               "x-order" : 2
+            }
+         },
+         "required" : [
+            "username",
+            "email",
+            "password"
+         ],
          "type" : "object",
          "x-id-field" : "username",
          "x-list-columns" : [
@@ -1375,6 +1450,117 @@
                   "description" : "Item details",
                   "schema" : {
                      "$ref" : "#/definitions/usermini"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         },
+         "parameters" : [
+            {
+               "description" : "The id of the item",
+               "in" : "path",
+               "name" : "username",
+               "required" : true,
+               "type" : "string",
+               "x-mojo-placeholder" : "*"
+            }
+         ]
+      },
+      "/usernolink" : {
+         "get" : {
+            "parameters" : [
+               {
+                  "$ref" : "#/parameters/%24limit"
+               },
+               {
+                  "$ref" : "#/parameters/%24offset"
+               },
+               {
+                  "$ref" : "#/parameters/%24order_by"
+               },
+               {
+                  "description" : "Filter the list by the access field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "access",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the age field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "age",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the email field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "email",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the id field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "id",
+                  "type" : "integer"
+               },
+               {
+                  "description" : "Filter the list by the password field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "password",
+                  "type" : "string"
+               },
+               {
+                  "description" : "Filter the list by the username field. By default, looks for rows containing the value anywhere in the column. Use '*' anywhere in the value to anchor the match.",
+                  "in" : "query",
+                  "name" : "username",
+                  "type" : "string"
+               }
+            ],
+            "responses" : {
+               "200" : {
+                  "description" : "List of items",
+                  "schema" : {
+                     "properties" : {
+                        "items" : {
+                           "description" : "This page of items",
+                           "items" : {
+                              "$ref" : "#/definitions/usernolink"
+                           },
+                           "type" : "array"
+                        },
+                        "total" : {
+                           "description" : "The total number of items available",
+                           "type" : "integer"
+                        }
+                     },
+                     "required" : [
+                        "items",
+                        "total"
+                     ],
+                     "type" : "object"
+                  }
+               },
+               "default" : {
+                  "description" : "Unexpected error",
+                  "schema" : {
+                     "$ref" : "#/definitions/_Error"
+                  }
+               }
+            }
+         }
+      },
+      "/usernolink/{username}" : {
+         "get" : {
+            "description" : "Fetch a single item",
+            "responses" : {
+               "200" : {
+                  "description" : "Item details",
+                  "schema" : {
+                     "$ref" : "#/definitions/usernolink"
                   }
                },
                "default" : {
