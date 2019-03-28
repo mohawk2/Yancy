@@ -127,6 +127,7 @@ END {
         type => 'object',
         required => [qw( name version )],
         'x-id-field' => 'name',
+        'x-pk-field' => 'name',
         'x-ignore' => 1,
         properties => {
             name => {
@@ -643,6 +644,7 @@ sub test_backend {
                 'x-ignore' => 1,
                 required => [qw( name version )],
                 'x-id-field' => 'name',
+                'x-pk-field' => 'name',
                 properties => {
                     name => { type => 'string', 'x-order' => 1 },
                     version => { type => 'integer', 'x-order' => 2 },

@@ -334,6 +334,24 @@ address or username for example), you should set this configuration key.
 This field can be any unique identifier, but it will be the ID that
 Yancy uses for all of its operations.
 
+It can be detected by L</read_schema> if there is only one
+unique-constrained column that is not the primary key, else it will be
+the primary key.
+
+=item x-pk-field
+
+This key sets the name of the collection's ID field to use to uniquely
+identify individual items, on a relational level, for efficiency. By
+default, Yancy assumes this field is also named C<id>.
+
+    people => {
+        'x-id-field' => 'email',
+        'x-pk-field' => 'people_id', # a convention that is also used
+        properties => { ... },
+    },
+
+It can be detected by L</read_schema> from the database configuration.
+
 =item x-list-columns
 
 This key should be an array of columns to display on the list view, in

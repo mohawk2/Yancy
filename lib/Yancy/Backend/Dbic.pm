@@ -295,6 +295,12 @@ sub read_schema {
         elsif ( $pk && $pk ne 'id' ) {
             $schema{ $table }{ 'x-id-field' } = $pk;
         }
+        if ( $pk && $pk ne 'id' ) {
+            $schema{ $table }{ 'x-pk-field' } = $pk;
+        }
+        elsif ( !$pk && @unique_columns == 1 && $unique_columns[0] ne 'id' ) {
+            $schema{ $table }{ 'x-pk-field' } = $unique_columns[0];
+        }
     }
     for my $table ( $self->dbic->sources ) {
         my $source = $self->dbic->source( $table );

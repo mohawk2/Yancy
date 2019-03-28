@@ -80,6 +80,12 @@ Self-explanatory, implements L<Yancy::Backend/new>.
 
 Given a collection, returns the string name of its ID field.
 
+=head2 pk_field
+
+Given a collection, returns the string name of its numerical primary-key,
+possibly "surrogate" (an integer, for efficiency) field. If no PK is
+available, will return the unique column-name.
+
 =head2 list_sqls
 
 Given a collection, parameters and options, returns SQL to generate the
@@ -225,6 +231,11 @@ sub new {
 sub id_field {
     my ( $self, $coll ) = @_;
     return $self->collections->{ $coll }{ 'x-id-field' } || 'id';
+}
+
+sub pk_field {
+    my ( $self, $coll ) = @_;
+    return $self->collections->{ $coll }{ 'x-pk-field' } || 'id';
 }
 
 sub list_sqls {
@@ -386,6 +397,12 @@ sub read_schema {
         }
         elsif ( $pk && $pk ne 'id' ) {
             $schema{ $table }{ 'x-id-field' } = $pk;
+        }
+        if ( $pk && $pk ne 'id' ) {
+            $schema{ $table }{ 'x-pk-field' } = $pk;
+        }
+        elsif ( !$pk && @unique_columns == 1 && $unique_columns[0] ne 'id' ) {
+            $schema{ $table }{ 'x-pk-field' } = $unique_columns[0];
         }
         if ( $IGNORE_TABLE{ $table } ) {
             $schema{ $table }{ 'x-ignore' } = 1;
