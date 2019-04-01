@@ -7,7 +7,9 @@ This tests the L<Yancy::Util> module's exported functions.
 
 use Mojo::Base '-strict';
 use Test::More;
-use Yancy::Util qw( load_backend curry currym copy_inline_refs );
+use Yancy::Util qw(
+    load_backend curry currym copy_inline_refs queryspec_from_schema
+);
 use FindBin qw( $Bin );
 use Mojo::File qw( path );
 use lib "".path( $Bin, 'lib' );
@@ -219,6 +221,109 @@ subtest 'copy_inline_refs' => sub {
         },
         'type' => 'object'
     }, 'user' or diag explain $got;
+};
+
+subtest 'queryspec_from_schema' => sub {
+    my $schema = {
+        blog => {
+            type => 'object',
+            properties => {
+                comments => {
+                  items => { '$ref' => '#/comment' },
+                  type => 'array',
+                },
+                id => { type => 'integer' },
+                title => { type => 'string' },
+                user => { '$ref' => '#/user' },
+            },
+        },
+        comment => {
+            properties => {
+                id => { type => 'integer' },
+                markdown => { type => 'string' },
+            },
+            type => 'object',
+        },
+        user => {
+            type => 'object',
+            properties => {
+                comments => {
+                    items => { '$ref' => '#/comment' },
+                    type => 'array',
+                },
+                email => { type => 'string' },
+                id => { type => 'integer' },
+            },
+        },
+        usermini => {
+            type => 'object',
+            'x-view' => { collection => 'user' },
+            properties => {
+                email => { type => 'string' },
+                id => { type => 'integer' },
+            },
+        },
+        userviewnoprops => {
+            type => 'object',
+            'x-view' => { collection => 'user' },
+        },
+    };
+    my $got = queryspec_from_schema( $schema, 'blog' );
+    is_deeply $got, {
+        table => 'blog',
+        fields => [ 'id', 'title' ],
+        keys => [ 'id' ],
+        multi => {
+            comments => {
+                table => 'comment',
+                fields => [ 'id', 'markdown' ],
+                keys => [ 'id' ],
+                multi => {},
+                single => {}
+            },
+        },
+        single => {
+            user => {
+                table => 'user',
+                fields => [ 'email', 'id' ],
+                keys => [ 'id' ],
+                single => {},
+                multi => {
+                    comments => {
+                        table => 'comment',
+                        fields => [ 'id', 'markdown' ],
+                        keys => [ 'id' ],
+                        multi => {},
+                        single => {}
+                    },
+                },
+            }
+        }
+    }, 'query from schema' or diag explain $got;
+    $got = queryspec_from_schema( $schema, 'usermini' );
+    is_deeply $got, {
+        fields => [ 'email', 'id' ],
+        keys => [ 'id' ],
+        multi => {},
+        single => {},
+        table => 'user',
+    }, 'query x-view' or diag explain $got;
+    $got = queryspec_from_schema( $schema, 'userviewnoprops' );
+    is_deeply $got, {
+        table => 'user',
+        fields => [ 'email', 'id' ],
+        keys => [ 'id' ],
+        single => {},
+        multi => {
+            comments => {
+                table => 'comment',
+                fields => [ 'id', 'markdown' ],
+                keys => [ 'id' ],
+                multi => {},
+                single => {}
+            },
+        },
+    }, 'query noprops' or diag explain $got;
 };
 
 done_testing;

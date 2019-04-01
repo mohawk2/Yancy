@@ -13,6 +13,9 @@ our $VERSION = '1.025';
     use Yancy::Util qw( currym );
     my $sub = currym( $object, 'method_name', @args );
 
+    use Yancy::Util qw( queryspec_from_schema );
+    my $queryspec = queryspec_from_schema( $backend->collections, 'user' );
+
 =head1 DESCRIPTION
 
 This module contains utility functions for Yancy.
@@ -28,7 +31,9 @@ use Exporter 'import';
 use Mojo::Loader qw( load_class );
 use Scalar::Util qw( blessed );
 use Mojo::JSON::Pointer;
-our @EXPORT_OK = qw( load_backend curry currym copy_inline_refs );
+our @EXPORT_OK = qw(
+    load_backend curry currym copy_inline_refs queryspec_from_schema
+);
 
 =sub load_backend
 
@@ -174,6 +179,61 @@ sub copy_inline_refs {
         $uspointer,
         $refmap,
     );
+}
+
+=head2 queryspec_from_schema
+
+Parameters:
+
+=over
+
+=item a JSON schema
+
+=item a collection name
+
+=back
+
+Returns a "query spec" hash-ref as described in, and used by,
+L<SQL::Abstract::Prefetch/select_from_queryspec>.
+
+=cut
+
+# assumes JSON schema, not OpenAPI
+sub _ref2def {
+    my ( $ref ) = @_;
+    $ref =~ s:^#/::;
+    $ref;
+}
+
+sub queryspec_from_schema {
+    my ( $schema, $coll ) = @_;
+    my $this_schema = $schema->{ $coll };
+    my $real_coll = ( $this_schema->{'x-view'} || {} )->{collection} // $coll;
+    my $props = $this_schema->{properties}
+        || $schema->{ $real_coll }{properties};
+    my ( @fields, %single, %multi );
+    my @keys = ( $this_schema->{'x-pk-field'} || 'id' );
+    for my $prop ( sort keys %$props ) {
+        if ( my $ref = $props->{ $prop }{'$ref'} ) {
+            my $def = _ref2def( $ref );
+            $single{ $prop } = queryspec_from_schema( $schema, $def );
+        } elsif (
+            $props->{ $prop }{type} eq 'array' and
+            $ref = $props->{ $prop }{items}{'$ref'}
+        ) {
+            my $def = _ref2def( $ref );
+            $multi{ $prop } = queryspec_from_schema( $schema, $def );
+        } else {
+            push @fields, $prop;
+        }
+    }
+    {
+        table => $real_coll,
+        keys => \@keys,
+        fields => \@fields,
+        single => \%single,
+        multi => \%multi,
+    };
 }
 
 1;
